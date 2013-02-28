@@ -1,14 +1,14 @@
 <?php
 
 // Insert into sample_crud_resource
-$post = array(
-  'resource' => 'sample_crud_resource',
-  'api_key' => 'API_KEY',
-  'method' => 'insert',
-  'arguments' => json_encode(array(
-    'attributes' => array('column_one'=>rand(), 'column_two'=>'will be overridden by sample_crud_resource class')
-  ))
-);
+// $post = array(
+//   'resource' => 'sample_crud_resource',
+//   'api_key' => 'API_KEY',
+//   'method' => 'insert',
+//   'arguments' => json_encode(array(
+//     'attributes' => array('column_one'=>rand(), 'column_two'=>'will be overridden by sample_crud_resource class')
+//   ))
+// );
 
 // Update sample_crud_resource
 // $post = array(
@@ -63,11 +63,25 @@ $post = array(
 // );
 
 // Call a custom function
+// $post = array(
+//   'resource' => 'sample_crud_resource',
+//   'api_key' => 'API_KEY',
+//   'method' => 'my_custom_function',
+//   'arguments' => json_encode(array())
+// );
+
+// Create an API user
 $post = array(
-  'resource' => 'sample_crud_resource',
+  'resource' => 'cora\api_user',
   'api_key' => 'API_KEY',
-  'method' => 'my_custom_function',
-  'arguments' => json_encode(array())
+  'method' => 'insert',
+  'arguments' => json_encode(array(
+    'attributes' => array(
+      'email'=>'foo@bar.com',
+      'name_first'=>'first',
+      'name_last'=>'last'
+    )
+  ))
 );
 
 $post_fields_string = '';

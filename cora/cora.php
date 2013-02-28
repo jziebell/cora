@@ -60,7 +60,10 @@ final class cora {
     ),
     'sample_dictionary_resource' => array(
       'select' => array('where_clause', 'columns')
-    )
+    ),
+    'cora\api_user' => array(
+      'insert' => array('attributes'),
+    ),
   );
 
   /**
@@ -169,10 +172,9 @@ final class cora {
     if($this->over_rate_threshold()) {
       return json_encode(array(
         'success'=>false,
-        'data'=>array(
-          'error'=>'Rate limit threshold reached. Maximum number of ' .
-            'requests is ' . $this->requests_per_minute . ' per minute.'
-        )
+        'data'=>null,
+        'error'=>'Rate limit threshold reached. Maximum number of ' .
+          'requests is ' . $this->requests_per_minute . ' per minute.'
       ));
     }
 
@@ -181,9 +183,8 @@ final class cora {
       if(empty($_SERVER['HTTPS'])) {
         return json_encode(array(
           'success'=>false,
-          'data'=>array(
-            'error'=>'You must send all requests to this API using SSL.'
-          )
+          'data'=>null,
+          'error'=>'You must send all requests to this API using SSL.'
         ));
       }
     }
@@ -196,10 +197,9 @@ final class cora {
       !isset($this->api_map[$this->resource][$this->method])) {
       return json_encode(array(
         'success'=>false,
-        'data'=>array(
-          'error'=>'Requested resource/method (' . $this->resource . '/' . 
-            $this->method . ') does not exist.'
-        )
+        'data'=>null,
+        'error'=>'Requested resource/method (' . $this->resource . '/' .
+          $this->method . ') does not exist.'
       ));
     }
 
@@ -339,13 +339,12 @@ final class cora {
   ) {
     $this->response_body = json_encode(array(
       'success'=>false,
-      'data'=>array(
-        'error'=>$error,
-        'error_number'=>$error_number,
-        'error_file'=>$error_file,
-        'error_line'=>$error_line,
-        'error_trace'=>$error_trace
-      )
+      'data'=>null,
+      'error'=>$error,
+      'error_number'=>$error_number,
+      'error_file'=>$error_file,
+      'error_line'=>$error_line,
+      'error_trace'=>$error_trace
     ));
 
     $this->success = false;

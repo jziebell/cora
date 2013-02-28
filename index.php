@@ -11,6 +11,9 @@
 // This API returns JSON data
 header('Content-type: application/json');
 
+// Compress output
+ob_start('ob_gzhandler');
+
 // Set a reasonable time limit
 set_time_limit(2);
 

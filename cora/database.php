@@ -2,6 +2,8 @@
 
 namespace cora;
 
+final class DuplicateEntryException extends \Exception {};
+
 /**
  * This is a MySQLi database wrapper. It provides access to some basic functions
  * like select, insert, and update. Those functions automatically escape table
@@ -256,9 +258,18 @@ final class database extends \mysqli {
     $stop = microtime(true);
 
     if($result === false) {
+      $error = $this->error;
       $this->rollback_transaction();
-      throw new \Exception('Query execution failed: ' .
-        $this->error . ' - ' . $query);
+
+      $exception_message = 'Query execution failed: ' . $error . ' - ' . $query;
+      if(stripos($error, 'duplicate entry') !== false) {
+        throw new DuplicateEntryException($exception_message);
+      }
+      else {
+        throw new \Exception($exception_message);
+      }
+
+
     }
 
     // Don't log info about transactions...they're a wash
