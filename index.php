@@ -34,7 +34,11 @@ try {
       'resource'  => isset($_POST['resource'])  ? $_POST['resource']  : null,
       'method'    => isset($_POST['method'])    ? $_POST['method']    : null,
       'arguments' => (isset($_POST['arguments']) ?
-        json_decode($_POST['arguments'], true) : null)
+        json_decode($_POST['arguments'], true) : null
+      ),
+      'session_key' => (isset($_COOKIE['session_key']) ?
+        $_COOKIE['session_key'] : null
+      )
     )
   );
 

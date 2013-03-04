@@ -71,16 +71,40 @@
 // );
 
 // Create an API user
+// $post = array(
+//   'resource' => 'cora\api_user',
+//   'api_key' => 'API_KEY',
+//   'method' => 'insert',
+//   'arguments' => json_encode(array(
+//     'attributes' => array(
+//       'email'=>'foo@bar.com',
+//       'name_first'=>'first',
+//       'name_last'=>'last'
+//     )
+//   ))
+// );
+
+// Create a user
+// $post = array(
+//   'resource' => 'user',
+//   'api_key' => 'API_KEY',
+//   'method' => 'insert',
+//   'arguments' => json_encode(array(
+//     'attributes' => array(
+//       'username'=>rand() . '@rand.com',
+//       'password'=>'monkeybars'
+//     )
+//   ))
+// );
+
+// Log in
 $post = array(
-  'resource' => 'cora\api_user',
+  'resource' => 'user',
   'api_key' => 'API_KEY',
-  'method' => 'insert',
+  'method' => 'log_in',
   'arguments' => json_encode(array(
-    'attributes' => array(
-      'email'=>'foo@bar.com',
-      'name_first'=>'first',
-      'name_last'=>'last'
-    )
+    'username'=>'925833790@rand.com',
+    'password'=>'monkeybars'
   ))
 );
 
@@ -93,6 +117,10 @@ $curl_handle = curl_init('localhost/cora/index.php');
 curl_setopt($curl_handle, CURLOPT_POST, count($post));
 curl_setopt($curl_handle, CURLOPT_POSTFIELDS, $post_fields_string);
 curl_setopt($curl_handle, CURLOPT_RETURNTRANSFER, true);
+
+// Debugging only, not a great place for the cookie file.
+curl_setopt($curl_handle, CURLOPT_COOKIEFILE, '/var/www/cookie.txt');
+curl_setopt($curl_handle, CURLOPT_COOKIEJAR, '/var/www/cookie.txt');
 $result = curl_exec($curl_handle);
 
 echo '<pre>';

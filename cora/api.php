@@ -12,21 +12,30 @@ abstract class api {
 
   /**
    * The current resource.
+   * @var string
    */
   protected $resource;
 
   /**
    * The database object.
+   * @var database
    */
   protected $database;
 
   /**
-   * Construct and set the variables. Strip the namespace "cora\" from the
-   * resource name.
+   * The session object.
+   * @var session
+   */
+  protected $session;
+
+  /**
+   * Construct and set the variables. Strip the namespace prefix 'cora\' from
+   * the resource name.
    */
   final function __construct() {
     $this->resource = str_replace('cora\\', '', get_class($this));
     $this->database = database::get_instance();
+    $this->session = session::get_instance();
   }
 
 }

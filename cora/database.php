@@ -2,6 +2,12 @@
 
 namespace cora;
 
+/**
+ * This exception is thrown by database->query if the query failed due to a
+ * duplicate entry in the database.
+ *
+ * @author Jon Ziebell
+ */
 final class DuplicateEntryException extends \Exception {};
 
 /**
@@ -48,15 +54,23 @@ final class database extends \mysqli {
    * instantiated using the get_instance() function.
    *
    * @throws \Exception If failing to connect to the database.
-   * @return null
    */
   private function __construct() {
-    parent::__construct('localhost', 'cora', 'JbbSv5eMFaBhRZs8');
+    parent::__construct(
+      cora::get_database_host(),
+      cora::get_database_username(),
+      cora::get_database_password()
+    );
+
     if($this->connect_error) {
       throw new \Exception('Database connect error ' .
         '(' . $this->connect_errno . ') ' . $this->connect_error);
     }
-    $this->select_db('cora');
+
+    $database_name = cora::get_database_name();
+    if($database_name !== null) {
+      $this->select_db($database_name);
+    }
   }
 
   /**
@@ -76,7 +90,7 @@ final class database extends \mysqli {
    * A transaction is started every time an API call is made and thus this class
    * is initalized.
    *
-   * @throws \Exception if the transaction fails to start.
+   * @throws \Exception If the transaction fails to start.
    * @return null
    */
   private function start_transaction() {
@@ -93,7 +107,7 @@ final class database extends \mysqli {
    * The transaction is committed at the end of an API call when this class is
    * destructed.
    *
-   * @throws \Exception if the transaction fails to commit.
+   * @throws \Exception If the transaction fails to commit.
    * @return null
    */
   private function commit_transaction() {
@@ -109,7 +123,7 @@ final class database extends \mysqli {
   /**
    * Rollback the current transaction.
    *
-   * @throws \Exception if the transaction fails to rollback.
+   * @throws \Exception If the transaction fails to rollback.
    * @return null
    */
   private function rollback_transaction() {
@@ -164,7 +178,7 @@ final class database extends \mysqli {
    * keywords as table and column names.
    *
    * @param string $identifier The identifier to escape
-   * @throws \Exception if the identifier does not match the character class
+   * @throws \Exception If the identifier does not match the character class
    *     [A-Za-z0-9_]. That would make it invalid for use in MySQL.
    * @return string The escaped identifier.
    */
@@ -229,13 +243,18 @@ final class database extends \mysqli {
    * @return database A new database object or the already created one.
    */
   public static function get_instance() {
-    if(!isset(self::$instance)) self::$instance = new self();
+    if(!isset(self::$instance)) {
+      self::$instance = new self();
+    }
     return self::$instance;
   }
 
   /**
    * Performs a query on the database. This function is available publicly for
    * the case when the standard select, insert, and update don't quite cut it.
+   *
+   * The exceptions are broken up somewhat by type to make it easier to catch
+   * and handle these exceptions if desired.
    *
    * This will start a transaction if the query begins with "insert" or "update"
    * and a transaction has not already been started.
@@ -244,13 +263,24 @@ final class database extends \mysqli {
    * FUNCTION DIRECTLY. THIS FUNCTION DOES NOT DO IT FOR YOU.
    *
    * @param string $query The query to execute.
-   * @throws \Exception if the query failed.
+   * @throws DuplicateEntryException if the query failed due to a duplicate
+   *     entry (unique key violation)
+   * @throws \Exception If the query was something like "delete from...".
+   *     Deletes are not allowed...update the deleted column to 1 instead.
+   * @throws \Exception If the query failed and was not caught by any other
+   *     exception types.
    * @return mixed The result directly from $mysqli->query.
    */
   public function query($query) {
     // If this was an insert or an update, start a transaction
-    if(in_array(substr(trim($query), 0, 6), array('insert', 'update'))) {
+    $query_type = substr(trim($query), 0, 6);
+    if(in_array($query_type, array('insert', 'update'))) {
       $this->start_transaction();
+    }
+    else if($query_type === 'delete') {
+      throw new \Exception('Delete queries are not allowed. ' . '
+        Use "update set deleted=1" instead. ' . '
+        Attempted to execute "' . $query . '".');
     }
 
     $start = microtime(true);

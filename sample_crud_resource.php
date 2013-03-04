@@ -24,8 +24,8 @@ final class sample_crud_resource extends cora\crud {
 	}
 
   public function my_custom_function($whatever, $i, $want) {
-    $id = $this->insert(array('column_one'=>'test'));
-    $this->delete($id);
+    // $id = $this->insert(array('column_one'=>'test'));
+    // $this->delete($id);
     return array('foo'=>1, 'bar'=>2);
   }
 
