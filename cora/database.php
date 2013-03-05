@@ -450,5 +450,3 @@ final class database extends \mysqli {
   }
 
 }
-
-?>

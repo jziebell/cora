@@ -49,5 +49,3 @@ class api_log extends crud {
 	}
 
 }
-
-?>

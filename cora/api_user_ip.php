@@ -82,5 +82,3 @@ class api_user_ip extends crud {
 
 
 }
-
-?>

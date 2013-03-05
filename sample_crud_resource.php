@@ -30,5 +30,3 @@ final class sample_crud_resource extends cora\crud {
   }
 
 }
-
-?>

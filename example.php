@@ -127,6 +127,4 @@ echo '<pre>';
 print_r($result);
 echo '<hr/>';
 print_r(json_decode($result, true));
-echo '</pre>'
-
-?>
+echo '</pre>';

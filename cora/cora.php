@@ -608,5 +608,3 @@ final class cora {
   }
 
 }
-
-?>

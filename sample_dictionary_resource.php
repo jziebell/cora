@@ -13,5 +13,3 @@ final class sample_dictionary_resource extends cora\dictionary {
   }
 
 }
-
-?>

@@ -92,5 +92,3 @@ class api_user extends crud {
   }
 
 }
-
-?>

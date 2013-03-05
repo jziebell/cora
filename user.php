@@ -124,5 +124,3 @@ class user extends cora\crud {
     return $this->session->invalidate();
   }
 }
-
-?>

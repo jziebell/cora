@@ -81,5 +81,3 @@ abstract class dictionary {
   }
 
 }
-
-?>
