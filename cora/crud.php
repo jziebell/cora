@@ -74,9 +74,7 @@ abstract class crud extends api {
     if(count($item) === 1) {
       return $item[0];
     }
-    else throw new \Exception(
-      'Resource "' . $this->resource . '" with id "' . $id . '" is not found.'
-    );
+    else throw new \Exception('Resource item not found.', 1100);
   }
 
   /**

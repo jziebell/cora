@@ -63,8 +63,7 @@ final class database extends \mysqli {
     );
 
     if($this->connect_error) {
-      throw new \Exception('Database connect error ' .
-        '(' . $this->connect_errno . ') ' . $this->connect_error);
+      throw new \Exception('Could not connect to database.', 1200);
     }
 
     $database_name = cora::get_database_name();
@@ -97,7 +96,7 @@ final class database extends \mysqli {
     if(self::$transaction_started === false) {
       $result = $this->query('start transaction');
       if($result === false) {
-        throw new \Exception('Failed to start database transaction.');
+        throw new \Exception('Failed to start database transaction.', 1201);
       }
       self::$transaction_started = true;
     }
@@ -115,7 +114,7 @@ final class database extends \mysqli {
       self::$transaction_started = false;
       $result = $this->query('commit');
       if($result === false) {
-        throw new \Exception('Failed to commit database transaction.');
+        throw new \Exception('Failed to commit database transaction.', 1202);
       }
     }
   }
@@ -131,7 +130,7 @@ final class database extends \mysqli {
       self::$transaction_started = false;
       $result = $this->query('rollback');
       if($result === false) {
-        throw new \Exception('Failed to rollback database transaction.');
+        throw new \Exception('Failed to rollback database transaction.', 1203);
       }
     }
   }
@@ -187,9 +186,7 @@ final class database extends \mysqli {
       return "`$identifier`";
     }
     else {
-      throw new \Exception('Query identifier "' . $identifier . '" is ' .
-        'invalid. All identifiers (table names, column names, etc) must ' .
-        'match the regular expression "^[A-Za-z0-9_]$".');
+      throw new \Exception('Query identifier is invalid.', 1204);
     }
   }
 
@@ -278,9 +275,7 @@ final class database extends \mysqli {
       $this->start_transaction();
     }
     else if($query_type === 'delete') {
-      throw new \Exception('Delete queries are not allowed. ' . '
-        Use "update set deleted=1" instead. ' . '
-        Attempted to execute "' . $query . '".');
+      throw new \Exception('Delete queries are not allowed.', 1205);
     }
 
     $start = microtime(true);
@@ -288,15 +283,19 @@ final class database extends \mysqli {
     $stop = microtime(true);
 
     if($result === false) {
-      $error = $this->error;
+      $database_error = $this->error;
       $this->rollback_transaction();
 
-      $exception_message = 'Query execution failed: ' . $error . ' - ' . $query;
-      if(stripos($error, 'duplicate entry') !== false) {
-        throw new DuplicateEntryException($exception_message);
+      cora::set_error_extra_info(array(
+        'database_error' => $database_error,
+        'query' => $query
+      ));
+
+      if(stripos($database_error, 'duplicate entry') !== false) {
+        throw new DuplicateEntryException('Duplicate database entry.', 1206);
       }
       else {
-        throw new \Exception($exception_message);
+        throw new \Exception('Database query failed.', 1207);
       }
 
 
@@ -376,12 +375,7 @@ final class database extends \mysqli {
   public function update($table, $id, $attributes) {
     // Check for errors
     if(count($attributes) === 0) {
-      throw new \Exception('In order to perform an update, you must specify ' .
-        'at least one attribute.');
-    }
-    if(!ctype_digit($id) && !is_int($id)) {
-      throw new \Exception('The id argument must be a number. ' . '
-        The value "' . $id . '" is not.');
+      throw new \Exception('Updates require at least one attribute.', 1208);
     }
 
     // Build the column setting

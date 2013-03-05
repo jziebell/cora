@@ -72,10 +72,12 @@ abstract class dictionary {
    */
   final protected function _get($id, $columns = array()) {
     $item = $this->select(array($this->resource . '_id' => $id));
-    if(count($item) === 1) return $item[0];
-    else throw new \Exception(
-      'Resource "' . $this->resource . '" with id "' . $id . '" is not found.';
-    );
+    if(count($item) === 1) {
+      return $item[0];
+    }
+    else {
+      throw new \Exception('Resource item not found.', 1300);
+    }
   }
 
 }

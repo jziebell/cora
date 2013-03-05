@@ -44,13 +44,7 @@ try {
 
   // Error handling
   set_error_handler(array($cora, 'error_handler'));
-  register_shutdown_function(
-    array($cora, 'error_handler'),
-    null,
-    null,
-    null,
-    null
-  );
+  register_shutdown_function(array($cora, 'shutdown_handler'));
 
   // Do it
   die($cora -> process_api_request());

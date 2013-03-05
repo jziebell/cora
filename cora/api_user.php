@@ -15,31 +15,31 @@ class api_user extends crud {
    *
    * @param array $attributes
    * @throws \Exception If, after 3 tries, a unique API key could not be
-   *     found. This will realisticly never happen but is protected aginst
+   *     found. This will realistically never happen but is protected aginst
    *     regardless.
    * @return int
    */
   public function insert($attributes) {
     $attributes['confirmed'] = false;
-    $tries = $tries_remaining = 3;
-    do {
-      try {
+    // $tries = $tries_remaining = 3;
+    // do {
+      // try {
         $attributes['api_key'] = self::generate_api_key();
         return parent::_insert($attributes);
-      } catch (DuplicateEntryException $e) {
+      // } catch (DuplicateEntryException $e) {
         /*
         * Catch all duplicate entry exceptions. If the duplicate violation was
         * on the email field, send back an appropriate message. Otherwise go on
         * and try the insert again with a new API key.
         */
-        if(stripos($e->getMessage(), 'for key \'email\'') !== false) {
-          die('TODO error message');
-        }
-      }
-    } while (--$tries_remaining > 0);
+        // if(stripos($e->getMessage(), 'for key \'email\'') !== false) {
+        //   die('TODO error message');
+        // }
+      // }
+    // } while (--$tries_remaining > 0);
 
-    throw new \Exception('Failed to generate unique API key in ' .
-      $tries . ' tries. Please retry your action.');
+    // throw new \Exception('Failed to generate unique API key in ' .
+    //   $tries . ' tries. Please retry your action.');
   }
 
   /**
@@ -81,12 +81,14 @@ class api_user extends crud {
   }
 
   /**
-   * Generates a random (enough) 32 character long hex string.
+   * Generates a random (enough) 40 character long hex string.
    *
    * @return string
    */
   private static function generate_api_key() {
-    return strtolower(md5(rand()));
+    // return strtolower(md5(rand()));
+    return strtolower(sha1(uniqid(mt_rand(), true)));
+
   }
 
 }

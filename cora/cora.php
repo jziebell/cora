@@ -7,12 +7,13 @@ namespace cora;
  * functionality and settings. Here is a list of all the settings and their
  * default values. See documentation and set these values below.
  *
+ * $debug = false;
  * $database_host = 'localhost';
- * $database_username = 'cora';
- * $database_password = 'JbbSv5eMFaBhRZs8';
- * $database_name = 'cora';
+ * $database_username = '';
+ * $database_password = '';
+ * $database_name = '';
  * $session_length = 28800;
- * $force_ssl = false;
+ * $force_ssl = true;
  * $requests_per_minute = 30;
  * $allow_api_user_ip_filtering = false;
  * $api_map = array(...);
@@ -22,6 +23,14 @@ namespace cora;
 final class cora {
 
   /* BEGIN SETTINGS */
+
+  /**
+   * Whether or not debugging is enabled. Debugging will produce additional
+   * output in the API response, including data->error_file, data->error_line,
+   * data->error_trace, and the original request.
+   * @var bool
+   */
+  private static $debug = true;
 
   /**
    * Database host. Can be IP or hostname.
@@ -161,6 +170,14 @@ final class cora {
   private $start_timestamp;
 
   /**
+   * The original request. It gets split up and stored in some of these other
+   * variables, but the original version is kept together in order to send back
+   * when debugging is enabled.
+   * @var array
+   */
+  private $request;
+
+  /**
    * The API provided in the constructor.
    * @var string
    */
@@ -212,6 +229,19 @@ final class cora {
   private $success = false;
 
   /**
+   * Extra information for errors. For example, the database class puts
+   * additional information into this variable if the query fails. The
+   * error_message remains the same but has this additional data to help the
+   * developer (if debug is enabled).
+   *
+   * I'm not 100% sure static is the most intuitive way to use this. I'd prefer
+   * it not be static but then any class that wants to set this extra info has
+   * to have the cora object passed to it or else cora needs to be a singleton.
+   * @var mixed
+   */
+  private static $error_extra_info = null;
+
+  /**
    * Database object.
    * @var database
    */
@@ -230,23 +260,24 @@ final class cora {
    * doesn't happen here is so that I can store exactly what was sent to me for
    * logging purposes.
    *
-   * @param array $data Really just the $_POST array in a normal situation.
+   * @param array $request Really just the $_POST array in a normal situation.
    *     Required keys are: api_key, resource, method, arguments. The
    *     session_key value is not required.
    */
-  public function __construct($data) {
+  public function __construct($request) {
     $this->start_timestamp = microtime(true);
+    $this->request = $request;
     $this->database = database::get_instance();
     $this->session = session::get_instance();
 
-    if(isset($data['session_key'])) {
-      $this->session->set_session_key($data['session_key']);
+    if(isset($request['session_key'])) {
+      $this->session->set_session_key($request['session_key']);
     }
 
-    $this->api_key   = isset($data['api_key'])   ? $data['api_key']   : null;
-    $this->resource  = isset($data['resource'])  ? $data['resource']  : null;
-    $this->method    = isset($data['method'])    ? $data['method']    : null;
-    $this->arguments = isset($data['arguments']) ? $data['arguments'] : null;
+    $this->api_key   = isset($request['api_key'])   ? $request['api_key']   : null;
+    $this->resource  = isset($request['resource'])  ? $request['resource']  : null;
+    $this->method    = isset($request['method'])    ? $request['method']    : null;
+    $this->arguments = isset($request['arguments']) ? $request['arguments'] : null;
   }
 
   /**
@@ -258,23 +289,22 @@ final class cora {
    * @throws \Exception If a private method was called without a valid session.
    * @return null
    */
-  public function check_request_for_errors() {
+  private function check_request_for_errors() {
     if($this->api_key === null) {
-      throw new \Exception('API Key is required.');
+      throw new \Exception('API Key is required.', 1000);
     }
     if($this->resource === null) {
-      throw new \Exception('Resource is required.');
+      throw new \Exception('Resource is required.', 1001);
     }
     if($this->method === null) {
-      throw new \Exception('Method is required.');
+      throw new \Exception('Method is required.', 1002);
     }
+
+    // TODO: Make sure I sent a valid API key (error 1003)
 
     if($this->request_type === 'private' && $this->session->is_valid() === false) {
-      throw new \Exception('A valid session is required to call ' .
-        $this->resource . '->' . $this->method . '().');
+      throw new \Exception('Session is expired.', 1004);
     }
-
-    // TODO: Make sure I sent a valid API key
   }
 
   /**
@@ -302,28 +332,21 @@ final class cora {
    * performed. Same deal for SSL if it was required and not used and same deal
    * if the requested resource/method is unavailable.
    *
+   * @throws \Exception If the rate limit threshhold is reached.
+   * @throws \Exception If SSL is required but not used.
    * @return string The response JSON.
    */
   public function process_api_request() {
     // Rate limit before doing anything else.
+
+    // TODO: Exclude these two exceptions from logging the request or doing anything else
     if($this->over_rate_limit()) {
-      return json_encode(array(
-        'success'=>false,
-        'data'=>null,
-        'error'=>'Rate limit threshold reached. Maximum number of ' .
-          'requests is ' . $this->requests_per_minute . ' per minute.'
-      ));
+      throw new \Exception('Rate limit reached.', 1005);
     }
 
     // Force SSL.
-    if(self::$force_ssl === true) {
-      if(empty($_SERVER['HTTPS'])) {
-        return json_encode(array(
-          'success'=>false,
-          'data'=>null,
-          'error'=>'You must send all requests to this API using SSL.'
-        ));
-      }
+    if(self::$force_ssl === true && empty($_SERVER['HTTPS'])) {
+      throw new \Exception('Request must be sent over HTTPS.', 1006);
     }
 
     // Sets $this->request_type to 'public' or 'private'
@@ -362,8 +385,6 @@ final class cora {
       'data'=>$this->api_response
     ));
 
-    $this->log_request();
-
     return $this->response_body;
   }
 
@@ -397,7 +418,7 @@ final class cora {
    */
   private function log_request() {
     $response_time = microtime(true) - $this->start_timestamp;
-    $response_body = substr(json_encode($this->response_body), 0, 131072);
+    $response_body = substr($this->response_body, 0, 131072);
     $response_has_error = !$this->success;
 
     $request_arguments = $this->arguments;
@@ -495,41 +516,50 @@ final class cora {
   }
 
   /**
-   * Override of the default PHP error handler. This also doubles as the
-   * shutdown function. If there was no error on shutdown then it just won't do
-   * anything. If there was an error that somehow didn't get caught, then this
-   * will find it with error_get_last and return appropriately.
+   * Sets error_extra_info.
    *
-   * @param int $error_number The error number from PHP.
-   * @param string $error The error message.
+   * @return null
+   */
+  public static function set_error_extra_info($error_extra_info) {
+    $this->error_extra_info = $error_extra_info;
+  }
+
+  /**
+   * Override of the default PHP error handler. Grabs the error info and sends
+   * it to the exception handler which returns a JSON response.
+   *
+   * @param int $error_code The error number from PHP.
+   * @param string $error_message The error message.
    * @param string $error_file The file the error happend in.
    * @param int $error_line The line of the file the error happened on.
    * @return string The JSON response with the error details.
    */
-  public function error_handler(
-    $error_number, $error, $error_file, $error_line
-  ) {
-    if($error_number === null) {
-      $error = error_get_last();
-      if($error !== null) {
-        die($this->handle_exception(
-          $error['message'],
-          $error['type'],
-          $error['file'],
-          $error['line'],
-          debug_backtrace()
-        ));
-      }
-      else {
-        // Will land here if this function is executed on shutdown and there was
-        // no error.
-      }
-    } else {
+  public function error_handler($error_code, $error_message, $error_file, $error_line) {
+    die($this->handle_exception(
+      $error_message,
+      $error_code,
+      $error_file,
+      $error_line,
+      debug_backtrace()
+    ));
+  }
+
+  /**
+   * Executes when the script finishes. If there was no error on shutdown then
+   * it just won't do anything. If there was an error that somehow didn't get
+   * caught, then this will find it with error_get_last and return appropriately.
+   *
+   * TODO: When would this ever get executed with an error? Only if using the @ symbol?
+   */
+  public function shutdown_handler() {
+    $this->log_request();
+    $error = error_get_last();
+    if($error !== null) {
       die($this->handle_exception(
-        $error,
-        $error_number,
-        $error_file,
-        $error_line,
+        $error['message'],
+        $error['type'],
+        $error['file'],
+        $error['line'],
         debug_backtrace()
       ));
     }
@@ -537,29 +567,42 @@ final class cora {
 
   /**
    * Handle all exceptions by generating a JSON response with the error details.
+   * If debugging is enabled, a bunch of other information is sent back to help
+   * out.
    *
-   * @param string $error The error message.
-   * @param mixed $error_number The error number from PHP.
-   * @param string $error_file The file the error happend in.
+   * @param string $error_message The error message.
+   * @param mixed $error_code The supplied error code.
+   * @param string $error_file The file the error happened in.
    * @param int $error_line The line of the file the error happened on.
    * @param array $error_trace The stack trace for the error.
    * @return string The JSON response with the error details.
    */
-  public function handle_exception(
-    $error, $error_number, $error_file, $error_line, $error_trace
-  ) {
-    $this->response_body = json_encode(array(
-      'success'=>false,
-      'data'=>null,
-      'error'=>$error,
-      'error_number'=>$error_number,
-      'error_file'=>$error_file,
-      'error_line'=>$error_line,
-      'error_trace'=>$error_trace
-    ));
-
+  public function handle_exception($error_message, $error_code, $error_file, $error_line, $error_trace) {
     $this->success = false;
-    $this->log_request();
+
+    if(self::$debug === true) {
+      $this->response_body = json_encode(array(
+        'success'=>$this->success,
+        'data'=>array(
+          'error_message'=>$error_message,
+          'error_code'=>$error_code,
+          'error_file'=>$error_file,
+          'error_line'=>$error_line,
+          'error_trace'=>$error_trace,
+          'error_extra_info'=>self::$error_extra_info
+        ),
+        'request'=>$this->request
+      ));
+    }
+    else {
+      $this->response_body = json_encode(array(
+        'success'=>$this->success,
+        'data'=>array(
+          'error_message'=>$error_message,
+          'error_code'=>$error_code
+        )
+      ));
+    }
 
     return $this->response_body;
   }
