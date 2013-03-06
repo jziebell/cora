@@ -16,6 +16,8 @@ Lightweight, fast, secure.
   <li>1004 - Session is expired.</li>
   <li>1005 - Rate limit reached.</li>
   <li>1006 - Request must be sent over HTTPS.</li>
+  <li>1007 - Requested resource/method is not mapped.</li>
+  <li>1008 - Method does not exist.</li>
   <li>1100 - Resource item not found.</li>
   <li>1200 - Could not connect to database.</li>
   <li>1201 - Failed to start database transaction.</li>
@@ -28,3 +30,28 @@ Lightweight, fast, secure.
   <li>1208 - Updates require at least one attribute.</li>
   <li>1300 - Resource item not found.</li>
 </ul>
+
+<h2>Return values</h2>
+
+If an error occurred:
+<pre>
+success   => Bool
+request*  => Array
+data      =>
+  error_message => String
+  error_code    => Int
+  error_file*   => String
+  error_line*   => Int
+  error_trace*  => Array
+</pre>
+
+If success:
+<pre>
+success   => Bool
+request*  => Array
+data      => [Defined by API method]
+</pre>
+
+\* Only if debug is enabled.
+
+

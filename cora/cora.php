@@ -4,19 +4,19 @@ namespace cora;
 
 /**
  * Workhorse for processing an API request. This has all of the core
- * functionality and settings. Here is a list of all the settings and their
- * default values. See documentation and set these values below.
+ * functionality and settings. Here is a list of all the settings. See
+ * documentation and set these values below.
  *
- * $debug = false;
- * $database_host = 'localhost';
- * $database_username = '';
- * $database_password = '';
- * $database_name = '';
- * $session_length = 28800;
- * $force_ssl = true;
- * $requests_per_minute = 30;
- * $allow_api_user_ip_filtering = false;
- * $api_map = array(...);
+ * $debug
+ * $database_host
+ * $database_username
+ * $database_password
+ * $database_name
+ * $session_length
+ * $force_ssl
+ * $requests_per_minute
+ * $allow_api_user_ip_filtering
+ * $api_map
  *
  * @author Jon Ziebell
  */
@@ -216,17 +216,17 @@ final class cora {
   private $response_body;
 
   /**
+   * The error code, if any. This is set in the exception handler and used in
+   * the shutdown handler to determine if the response should be logged.
+   */
+  private $response_error_code = null;
+
+  /**
    * The response from the requested resource. If there was an exception this
    * value will remain null.
    * @var mixed
    */
   private $api_response;
-
-  /**
-   * Whether or not the API request was successful.
-   * @var bool
-   */
-  private $success = false;
 
   /**
    * Extra information for errors. For example, the database class puts
@@ -324,22 +324,16 @@ final class cora {
 
   /**
    * Execute the request. It is run through the rate limiter, checked for
-   * errors, processed, then logged.
-   *
-   * If the rate limit is violated, return immediately; there's no need to do
-   * anything else. Requests sent after the rate limit is reached are not logged
-   * for performance reasons. Only a single select query will have been
-   * performed. Same deal for SSL if it was required and not used and same deal
-   * if the requested resource/method is unavailable.
+   * errors, then processed. Requests sent after the rate limit is reached are
+   * not logged.
    *
    * @throws \Exception If the rate limit threshhold is reached.
    * @throws \Exception If SSL is required but not used.
+   * @throws \Exception If the requested resource or method is not mapped.
+   * @throws \Exception If the requested method does not exist.
    * @return string The response JSON.
    */
   public function process_api_request() {
-    // Rate limit before doing anything else.
-
-    // TODO: Exclude these two exceptions from logging the request or doing anything else
     if($this->over_rate_limit()) {
       throw new \Exception('Rate limit reached.', 1005);
     }
@@ -363,15 +357,18 @@ final class cora {
       self::$api_map[$this->request_type][$this->resource][$this->method]
     );
     if($resource_mapped === false || $method_mapped === false) {
-      return json_encode(array(
-        'success'=>false,
-        'data'=>null,
-        'error'=>'Requested resource/method (' . $this->resource . '/' .
-          $this->method . ') does not exist.'
-      ));
+      throw new \Exception('Requested resource/method is not mapped.', 1007);
     }
 
+    // If the resource doesn't exist, spl_autoload_register() will throw a fatal
+    // error. The shutdown handler will "catch" it.
     $resource_instance = new $this->resource();
+
+    // If the method doesn't exist, I can throw an exception
+    if(method_exists($resource_instance, $this->method) === false) {
+      throw new \Exception('Method does not exist.', 1008);
+    }
+
     $arguments = $this->get_arguments(
       self::$api_map[$this->request_type][$this->resource][$this->method]
     );
@@ -379,9 +376,8 @@ final class cora {
       array($resource_instance, $this->method), $arguments
     );
 
-    $this->success = true;
     $this->response_body = json_encode(array(
-      'success'=>$this->success,
+      'success'=>true,
       'data'=>$this->api_response
     ));
 
@@ -419,7 +415,7 @@ final class cora {
   private function log_request() {
     $response_time = microtime(true) - $this->start_timestamp;
     $response_body = substr($this->response_body, 0, 131072);
-    $response_has_error = !$this->success;
+    $response_has_error = $this->response_error_code !== null;
 
     $request_arguments = $this->arguments;
     if(isset($request_arguments['password'])) {
@@ -535,7 +531,7 @@ final class cora {
    * @return string The JSON response with the error details.
    */
   public function error_handler($error_code, $error_message, $error_file, $error_line) {
-    die($this->handle_exception(
+    die($this->generate_error_response(
       $error_message,
       $error_code,
       $error_file,
@@ -545,23 +541,43 @@ final class cora {
   }
 
   /**
-   * Executes when the script finishes. If there was no error on shutdown then
-   * it just won't do anything. If there was an error that somehow didn't get
-   * caught, then this will find it with error_get_last and return appropriately.
+   * Override of the default PHP exception handler. All unhandled exceptions go
+   * here.
    *
-   * TODO: When would this ever get executed with an error? Only if using the @ symbol?
+   * @param Exception $e The exception.
+   * @return null
+   */
+  public function exception_handler($e) {
+    die($this->generate_error_response(
+      $e->getMessage(),
+      $e->getCode(),
+      $e->getFile(),
+      $e->getLine(),
+      $e->getTrace()
+    ));
+  }
+
+  /**
+   * Executes when the script finishes. If there was an error that somehow
+   * didn't get caught, then this will find it with error_get_last and return
+   * appropriately. Doesn't do anything if an exception was thrown due to the
+   * rate limit.
+   *
+   * @return null
    */
   public function shutdown_handler() {
-    $this->log_request();
-    $error = error_get_last();
-    if($error !== null) {
-      die($this->handle_exception(
-        $error['message'],
-        $error['type'],
-        $error['file'],
-        $error['line'],
-        debug_backtrace()
-      ));
+    if($this->response_error_code !== 1005) { // 1005 = Rate limit reached.
+      $this->log_request();
+      $error = error_get_last();
+      if($error !== null) {
+        die($this->generate_error_response(
+          $error['message'],
+          $error['type'],
+          $error['file'],
+          $error['line'],
+          debug_backtrace()
+        ));
+      }
     }
   }
 
@@ -577,12 +593,12 @@ final class cora {
    * @param array $error_trace The stack trace for the error.
    * @return string The JSON response with the error details.
    */
-  public function handle_exception($error_message, $error_code, $error_file, $error_line, $error_trace) {
-    $this->success = false;
+  public function generate_error_response($error_message, $error_code, $error_file, $error_line, $error_trace) {
+    $this->response_error_code = $error_code;
 
     if(self::$debug === true) {
       $this->response_body = json_encode(array(
-        'success'=>$this->success,
+        'success'=>false,
         'data'=>array(
           'error_message'=>$error_message,
           'error_code'=>$error_code,
@@ -596,7 +612,7 @@ final class cora {
     }
     else {
       $this->response_body = json_encode(array(
-        'success'=>$this->success,
+        'success'=>false,
         'data'=>array(
           'error_message'=>$error_message,
           'error_code'=>$error_code

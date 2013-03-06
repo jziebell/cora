@@ -26,7 +26,7 @@ spl_autoload_register();
 
 // TODO: Lock api_key to IP address(es)
 
-try {
+// try {
   // Processes the request and calls the requested resource
   $cora = new cora\cora(
     array(
@@ -44,17 +44,8 @@ try {
 
   // Error handling
   set_error_handler(array($cora, 'error_handler'));
+  set_exception_handler(array($cora, 'exception_handler'));
   register_shutdown_function(array($cora, 'shutdown_handler'));
 
   // Do it
   die($cora -> process_api_request());
-}
-catch(Exception $e) {
-  die($cora->handle_exception(
-    $e->getMessage(),
-    $e->getCode(),
-    $e->getFile(),
-    $e->getLine(),
-    $e->getTrace()
-  ));
-}

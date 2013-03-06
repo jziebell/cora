@@ -152,7 +152,7 @@ final class session {
    * @return string The generated session key.
    */
   private static function generate_session_key() {
-    return strtolower(md5(rand()));
+    return strtolower(sha1(uniqid(mt_rand(), true)));
   }
 
 }
