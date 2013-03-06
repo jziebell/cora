@@ -10,6 +10,17 @@ namespace cora;
 class api_user extends crud {
 
   /**
+   * TODO
+   *
+   * @param array $where_clause
+   * @param array $columns
+   * @return array
+   */
+  public function select($where_clause, $columns = array()) {
+    return parent::_select($where_clause, $columns);
+  }
+
+  /**
    * Creates a new API user. The API key is automatically generated. If that API
    * key already exists for another user, try a new API key up to 3 times.
    *
@@ -26,6 +37,7 @@ class api_user extends crud {
       // try {
         $attributes['api_key'] = self::generate_api_key();
         return parent::_insert($attributes);
+        // get_error_extra_info to see what the error was
       // } catch (DuplicateEntryException $e) {
         /*
         * Catch all duplicate entry exceptions. If the duplicate violation was

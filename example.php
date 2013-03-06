@@ -1,9 +1,11 @@
 <?php
 
+$api_key = 'e0f38a5fd6c61ce6d7fc7ee7b9272811';
+
 // Insert into sample_crud_resource
 // $post = array(
 //   'resource' => 'sample_crud_resource',
-//   'api_key' => 'API_KEY',
+//   'api_key' => $api_key,
 //   'method' => 'insert',
 //   'arguments' => json_encode(array(
 //     'attributes' => array('column_one'=>rand(), 'column_two'=>'will be overridden by sample_crud_resource class')
@@ -13,7 +15,7 @@
 // Update sample_crud_resource
 // $post = array(
 //   'resource' => 'sample_crud_resource',
-//   'api_key' => 'API_KEY',
+//   'api_key' => $api_key,
 //   'method' => 'update',
 //   'arguments' => json_encode(array(
 //     'id' => 1,
@@ -24,7 +26,7 @@
 // Delete sample_crud_resource
 // $post = array(
 //   'resource' => 'sample_crud_resource',
-//   'api_key' => 'API_KEY',
+//   'api_key' => $api_key,
 //   'method' => 'delete',
 //   'arguments' => json_encode(array(
 //     'id' => 3
@@ -34,7 +36,7 @@
 // Get sample_crud_resource
 // $post = array(
 //   'resource' => 'sample_crud_resource',
-//   'api_key' => 'API_KEY',
+//   'api_key' => $api_key,
 //   'method' => 'get',
 //   'arguments' => json_encode(array(
 //     'id' => 1,
@@ -45,7 +47,7 @@
 // Select sample_crud_resource
 // $post = array(
 //   'resource' => 'sample_crud_resource',
-//   'api_key' => 'API_KEY',
+//   'api_key' => $api_key,
 //   'method' => 'select',
 //   'arguments' => json_encode(array(
 //     'where_clause' => array('deleted'=>array(0,1))
@@ -55,7 +57,7 @@
 // Select by id sample_crud_resource
 // $post = array(
 //   'resource' => 'sample_crud_resource',
-//   'api_key' => 'API_KEY',
+//   'api_key' => $api_key,
 //   'method' => 'select_id',
 //   'arguments' => json_encode(array(
 //     'where_clause' => array('deleted'=>array(0,1))
@@ -65,7 +67,7 @@
 // Call a custom function
 // $post = array(
 //   'resource' => 'sample_crud_resource',
-//   'api_key' => 'API_KEY',
+//   'api_key' => $api_key,
 //   'method' => 'my_custom_function',
 //   'arguments' => json_encode(array())
 // );
@@ -73,7 +75,7 @@
 // Create an API user
 // $post = array(
 //   'resource' => 'cora\api_user',
-//   'api_key' => 'API_KEY',
+//   'api_key' => $api_key,
 //   'method' => 'insert',
 //   'arguments' => json_encode(array(
 //     'attributes' => array(
@@ -87,7 +89,7 @@
 // Create a user
 // $post = array(
 //   'resource' => 'user',
-//   'api_key' => 'API_KEY',
+//   'api_key' => $api_key,
 //   'method' => 'insert',
 //   'arguments' => json_encode(array(
 //     'attributes' => array(
@@ -100,7 +102,7 @@
 // Log in
 $post = array(
   'resource' => 'user',
-  'api_key' => 'API_KEY',
+  'api_key' => $api_key,
   'method' => 'log_in',
   'arguments' => json_encode(array(
     'username'=>'925833790@rand.com',

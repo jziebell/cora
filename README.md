@@ -12,7 +12,7 @@ Lightweight, fast, secure.
   <li>1000 - API Key is required.</li>
   <li>1001 - Resource is required.</li>
   <li>1002 - Method is required.</li>
-  <li>1003 - TODO.</li>
+  <li>1003 - Invalid API key.</li>
   <li>1004 - Session is expired.</li>
   <li>1005 - Rate limit reached.</li>
   <li>1006 - Request must be sent over HTTPS.</li>

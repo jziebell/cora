@@ -286,6 +286,7 @@ final class cora {
    * @throws \Exception If the API key was not specified.
    * @throws \Exception If the resource was not specified.
    * @throws \Exception If the method was not specified.
+   * @throws \Exception If the specified API key was invalid.
    * @throws \Exception If a private method was called without a valid session.
    * @return null
    */
@@ -300,7 +301,11 @@ final class cora {
       throw new \Exception('Method is required.', 1002);
     }
 
-    // TODO: Make sure I sent a valid API key (error 1003)
+    $api_user_resource = new api_user();
+    $api_user = $api_user_resource->select(array('api_key' => $this->api_key));
+    if(count($api_user) !== 1) {
+      throw new \Exception('Invalid API key.', 1003);
+    }
 
     if($this->request_type === 'private' && $this->session->is_valid() === false) {
       throw new \Exception('Session is expired.', 1004);
@@ -518,6 +523,15 @@ final class cora {
    */
   public static function set_error_extra_info($error_extra_info) {
     $this->error_extra_info = $error_extra_info;
+  }
+
+  /**
+   * Get error_extra_info.
+   *
+   * @return mixed
+   */
+  public static function get_error_extra_info() {
+    return $this->error_extra_info;
   }
 
   /**
