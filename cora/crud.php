@@ -82,13 +82,24 @@ abstract class crud extends api {
    * Setting of the primary key column is not allowed and will be overwritten if
    * you try.
    *
-   *
    * @param array $attributes An array of attributes to set for this item
-   * @return int The id of the inserted row.
+   * @param bool $return_item If true, return the inserted row instead of the
+   *     item id. This is (and should be) a fairly uncommon use. It performs an
+   *     additional query to get the inserted data from the database to make
+   *     sure we get all of the data, including default values on the table that
+   *     are not defined in the original insert.
+   * @return mixed The id of the inserted row or the row itself depending on the
+   *     value of $return_item.
    */
-  final protected function _insert($attributes) {
+  final protected function _insert($attributes, $return_item = false) {
     unset($attributes[$this->resource . '_id']);
-    return $this->database->insert($this->resource, $attributes);
+    $item_id = $this->database->insert($this->resource, $attributes);
+    if($return_item === true) {
+      return $this->_get($item_id);
+    }
+    else {
+      return $item_id;
+    }
   }
 
   /**

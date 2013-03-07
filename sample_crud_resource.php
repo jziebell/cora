@@ -11,9 +11,9 @@ final class sample_crud_resource extends cora\crud {
   public function get($id, $columns = array()) {
     return parent::_get($id, $columns);
   }
-  public function insert($attributes) {
+  public function insert($attributes, $return_item = false) {
     $attributes['column_two'] = "overridden to this value";
-    return parent::_insert($attributes);
+    return parent::_insert($attributes, $return_item);
   }
   public function update($id, $attributes) {
     return parent::_update($id, $attributes);

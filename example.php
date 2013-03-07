@@ -3,14 +3,15 @@
 $api_key = 'e0f38a5fd6c61ce6d7fc7ee7b9272811';
 
 // Insert into sample_crud_resource
-// $post = array(
-//   'resource' => 'sample_crud_resource',
-//   'api_key' => $api_key,
-//   'method' => 'insert',
-//   'arguments' => json_encode(array(
-//     'attributes' => array('column_one'=>rand(), 'column_two'=>'will be overridden by sample_crud_resource class')
-//   ))
-// );
+$post = array(
+  'resource' => 'sample_crud_resource',
+  'api_key' => $api_key,
+  'method' => 'insert',
+  'arguments' => json_encode(array(
+    'attributes' => array('column_one'=>rand(), 'column_two'=>'will be overridden by sample_crud_resource class'),
+    'return_item' => true
+  ))
+);
 
 // Update sample_crud_resource
 // $post = array(
@@ -100,15 +101,15 @@ $api_key = 'e0f38a5fd6c61ce6d7fc7ee7b9272811';
 // );
 
 // Log in
-$post = array(
-  'resource' => 'user',
-  'api_key' => $api_key,
-  'method' => 'log_in',
-  'arguments' => json_encode(array(
-    'username'=>'925833790@rand.com',
-    'password'=>'monkeybars'
-  ))
-);
+// $post = array(
+//   'resource' => 'user',
+//   'api_key' => $api_key,
+//   'method' => 'log_in',
+//   'arguments' => json_encode(array(
+//     'username'=>'925833790@rand.com',
+//     'password'=>'monkeybars'
+//   ))
+// );
 
 $post_fields_string = '';
 foreach($post as $key => $value) {

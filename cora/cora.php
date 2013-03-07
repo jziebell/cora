@@ -140,7 +140,7 @@ final class cora {
         'select' => array('where_clause', 'columns'),
         'select_id' => array('where_clause', 'columns'),
         'get' => array('id', 'columns'),
-        'insert' => array('attributes'),
+        'insert' => array('attributes', 'return_item'),
         'update' => array('id', 'attributes'),
         'delete' => array('id'),
         'my_custom_function' => array('whatever', 'i', 'want')
