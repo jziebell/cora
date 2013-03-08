@@ -146,10 +146,10 @@ final class database extends \mysqli {
    *     $value. If left alone or set to false, return a value appropriate to be
    *     used like "set foo=$bar" as it will have single quotes around it if
    *     necessary.
-   * @return mixed The escaped value.
+   * @return string The escaped value.
    */
   public function escape($value, $basic = false) {
-    if($basic) {
+    if($basic === true) {
       return $this->real_escape_string($value);
     }
 
@@ -157,10 +157,10 @@ final class database extends \mysqli {
       return 'null';
     }
     else if($value === true) {
-      return 1;
+      return '1';
     }
     else if($value === false) {
-      return 0;
+      return '0';
     }
     else if(is_int($value) || ctype_digit($value) || is_float($value)) {
       return $value;
