@@ -166,7 +166,7 @@ final class database extends \mysqli {
       return $value;
     }
     else {
-      return "'" . $this->real_escape_string($value) . "'";
+      return '"' . $this->real_escape_string($value) . '"';
     }
   }
 
@@ -183,7 +183,7 @@ final class database extends \mysqli {
    */
   private function escape_identifier($identifier) {
     if(preg_match('/^\w+$/', $identifier)) {
-      return "`$identifier`";
+      return '`' . $identifier . '`';
     }
     else {
       throw new \Exception('Query identifier is invalid.', 1204);
@@ -191,7 +191,7 @@ final class database extends \mysqli {
   }
 
   /**
-   * Builds a properly escaped string for the "where column=value" portion of a
+   * Builds a properly escaped string for the 'where column=value' portion of a
    * query.
    *
    * @param string $column The query column.
@@ -205,19 +205,19 @@ final class database extends \mysqli {
    */
   private function column_equals_value_where($column, $value) {
     if($value === null) {
-      return $this->escape_identifier($column) . " is null";
+      return $this->escape_identifier($column) . ' is null';
     }
     else if(is_array($value)) {
       return $this->escape_identifier($column) .
-        " in (" . implode(",", array_map(array($this, 'escape'), $value)) . ")";
+        ' in (' . implode(',', array_map(array($this, 'escape'), $value)) . ')';
     }
     else {
-      return $this->escape_identifier($column) . "=" . $this->escape($value);
+      return $this->escape_identifier($column) . '=' . $this->escape($value);
     }
   }
 
   /**
-   * Builds a properly escaped string for the "set column=value" portion of a
+   * Builds a properly escaped string for the 'set column=value' portion of a
    * query.
    *
    * @param string $column The query column.
@@ -227,7 +227,7 @@ final class database extends \mysqli {
    *     `foo`=5
    */
   private function column_equals_value_set($column, $value) {
-    return $this->escape_identifier($column) . "=" . $this->escape($value);
+    return $this->escape_identifier($column) . '=' . $this->escape($value);
   }
 
   /**
@@ -253,7 +253,7 @@ final class database extends \mysqli {
    * The exceptions are broken up somewhat by type to make it easier to catch
    * and handle these exceptions if desired.
    *
-   * This will start a transaction if the query begins with "insert" or "update"
+   * This will start a transaction if the query begins with 'insert' or 'update'
    * and a transaction has not already been started.
    *
    * IMPORTANT: YOU MUST SANTIZE YOUR OWN DATABASE QUERY WHEN USING THIS
@@ -262,7 +262,7 @@ final class database extends \mysqli {
    * @param string $query The query to execute.
    * @throws DuplicateEntryException if the query failed due to a duplicate
    *     entry (unique key violation)
-   * @throws \Exception If the query was something like "delete from...".
+   * @throws \Exception If the query was something like 'delete from...'.
    *     Deletes are not allowed...update the deleted column to 1 instead.
    * @throws \Exception If the query failed and was not caught by any other
    *     exception types.
@@ -302,7 +302,7 @@ final class database extends \mysqli {
     }
 
     // Don't log info about transactions...they're a wash
-    if($query !== "start transaction" && $query !== "commit") {
+    if($query !== 'start transaction' && $query !== 'commit') {
       self::$query_count++;
       self::$query_time += ($stop-$start);
     }
@@ -324,7 +324,7 @@ final class database extends \mysqli {
   public function select($table, $where_clause = array(), $columns = array()) {
     // Build the column listing.
     if(count($columns) === 0) {
-      $columns = "*";
+      $columns = '*';
     }
     else {
       $columns = implode(
@@ -334,12 +334,12 @@ final class database extends \mysqli {
 
     // Build the where clause.
     if(count($where_clause) === 0) {
-      $where = "";
+      $where = '';
     }
     else {
-      $where = " where " .
+      $where = ' where ' .
         implode(
-          " and ",
+          ' and ',
           array_map(
             array($this, 'column_equals_value_where'),
             array_keys($where_clause),
@@ -349,7 +349,7 @@ final class database extends \mysqli {
     }
 
     // Put everything together and return the result.
-    $query = "select $columns from " .
+    $query = 'select ' . $columns . ' from ' .
       $this->escape_identifier($table) . $where;
     $result = $this->query($query);
 
@@ -380,7 +380,7 @@ final class database extends \mysqli {
 
     // Build the column setting
     $columns = implode(
-      ",",
+      ',',
       array_map(
         array($this, 'column_equals_value_set'),
         array_keys($attributes),
@@ -390,9 +390,9 @@ final class database extends \mysqli {
 
     // Build the where clause
     $where_clause = array($table . '_id' => $id);
-    $where = "where " .
+    $where = 'where ' .
       implode(
-        " and ",
+        ' and ',
         array_map(
           array($this, 'column_equals_value_where'),
           array_keys($where_clause),
@@ -400,8 +400,8 @@ final class database extends \mysqli {
         )
       );
 
-    $query = "update " . $this->escape_identifier($table) .
-      " set $columns $where";
+    $query = 'update ' . $this->escape_identifier($table) .
+      ' set ' . $columns . ' $where';
     $this->query($query);
 
     return $this->affected_rows;
@@ -416,16 +416,16 @@ final class database extends \mysqli {
    * @return int The primary key of the inserted row.
    */
   public function insert($table, $attributes) {
-    $columns = implode(",",
+    $columns = implode(',',
       array_map(array($this, 'escape_identifier'), array_keys($attributes)));
 
-    $values = implode(",",
+    $values = implode(',',
       array_map(array($this, 'escape'), $attributes));
 
     $query =
-      "insert into " . $this->escape_identifier($table) . " " .
-      "(" . $columns . ") " .
-      "values (" . $values . ")";
+      'insert into ' . $this->escape_identifier($table) . ' ' .
+      '(' . $columns . ') ' .
+      'values (' . $values . ')';
 
     $this->query($query);
     return $this->insert_id;

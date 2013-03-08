@@ -522,7 +522,7 @@ final class cora {
    * @return null
    */
   public static function set_error_extra_info($error_extra_info) {
-    $this->error_extra_info = $error_extra_info;
+    self::$error_extra_info = $error_extra_info;
   }
 
   /**
