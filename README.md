@@ -28,6 +28,7 @@ Lightweight, fast, secure.
   <li>1206 - Duplicate database entry.</li>
   <li>1207 - Database query failed.</li>
   <li>1208 - Updates require at least one attribute.</li>
+  <li>1209 - Must use the same keys across all items.</li>
   <li>1300 - Resource item not found.</li>
 </ul>
 

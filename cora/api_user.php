@@ -31,7 +31,7 @@ class api_user extends crud {
    * @return int
    */
   public function insert($attributes) {
-    $attributes['confirmed'] = false;
+    // $attributes['confirmed'] = false;
     // $tries = $tries_remaining = 3;
     // do {
       // try {

@@ -13,6 +13,8 @@ final class sample_crud_resource extends cora\crud {
   }
   public function insert($attributes, $return_item = false) {
     $attributes['column_two'] = "overridden to this value";
+    // Example of using multi_insert
+    // return $this->database->multi_insert($this->resource, array($attributes, $attributes, $attributes));
     return parent::_insert($attributes, $return_item);
   }
   public function update($id, $attributes) {

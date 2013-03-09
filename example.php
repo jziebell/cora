@@ -80,9 +80,8 @@ $post = array(
 //   'method' => 'insert',
 //   'arguments' => json_encode(array(
 //     'attributes' => array(
-//       'email'=>'foo@bar.com',
-//       'name_first'=>'first',
-//       'name_last'=>'last'
+//       'username'=>'foo1@bar.com',
+//       'password'=>'foo1@bar.com'
 //     )
 //   ))
 // );
