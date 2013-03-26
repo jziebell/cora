@@ -17,30 +17,27 @@ ob_start('ob_gzhandler');
 // Set a reasonable time limit
 set_time_limit(2);
 
-// Turn on all error reporting but disable displaying them
+// Turn on all error reporting but disable displaying errors
 error_reporting(-1);
 ini_set('display_errors', '0');
 
 // Autoload classes as necessary so there are no includes/requires
 spl_autoload_register();
 
-// TODO: Lock api_key to IP address(es)
-
-// try {
-  // Processes the request and calls the requested resource
-  $cora = new cora\cora(
-    array(
-      'api_key'   => isset($_POST['api_key'])   ? $_POST['api_key']   : null,
-      'resource'  => isset($_POST['resource'])  ? $_POST['resource']  : null,
-      'method'    => isset($_POST['method'])    ? $_POST['method']    : null,
-      'arguments' => (isset($_POST['arguments']) ?
-        json_decode($_POST['arguments'], true) : null
-      ),
-      'session_key' => (isset($_COOKIE['session_key']) ?
-        $_COOKIE['session_key'] : null
-      )
+// Processes the request and calls the requested resource
+$cora = new cora\cora(
+  array(
+    'api_key'   => isset($_POST['api_key'])   ? $_POST['api_key']   : null,
+    'resource'  => isset($_POST['resource'])  ? $_POST['resource']  : null,
+    'method'    => isset($_POST['method'])    ? $_POST['method']    : null,
+    'arguments' => (isset($_POST['arguments']) ?
+      json_decode($_POST['arguments'], true) : null
+    ),
+    'session_key' => (isset($_COOKIE['session_key']) ?
+      $_COOKIE['session_key'] : null
     )
-  );
+  )
+);
 
   // Error handling
   set_error_handler(array($cora, 'error_handler'));

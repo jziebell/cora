@@ -57,16 +57,16 @@ final class database extends \mysqli {
    */
   private function __construct() {
     parent::__construct(
-      cora::get_database_host(),
-      cora::get_database_username(),
-      cora::get_database_password()
+      cora::get_setting('database_host'),
+      cora::get_setting('database_username'),
+      cora::get_setting('database_password')
     );
 
     if($this->connect_error) {
       throw new \Exception('Could not connect to database.', 1200);
     }
 
-    $database_name = cora::get_database_name();
+    $database_name = cora::get_setting('database_name');
     if($database_name !== null) {
       $this->select_db($database_name);
     }
@@ -162,7 +162,7 @@ final class database extends \mysqli {
     else if($value === false) {
       return '0';
     }
-    else if(is_int($value) || ctype_digit($value) || is_float($value)) {
+    else if(is_int($value) || ctype_digit($value)) {
       return $value;
     }
     else {
@@ -253,8 +253,8 @@ final class database extends \mysqli {
    * The exceptions are broken up somewhat by type to make it easier to catch
    * and handle these exceptions if desired.
    *
-   * This will start a transaction if the query begins with 'insert' or 'update'
-   * and a transaction has not already been started.
+   * This will start a transaction if the query begins with 'insert', 'update',
+   * or 'delete' and a transaction has not already been started.
    *
    * IMPORTANT: YOU MUST SANTIZE YOUR OWN DATABASE QUERY WHEN USING THIS
    * FUNCTION DIRECTLY. THIS FUNCTION DOES NOT DO IT FOR YOU.
@@ -262,20 +262,15 @@ final class database extends \mysqli {
    * @param string $query The query to execute.
    * @throws DuplicateEntryException if the query failed due to a duplicate
    *     entry (unique key violation)
-   * @throws \Exception If the query was something like 'delete from...'.
-   *     Deletes are not allowed...update the deleted column to 1 instead.
    * @throws \Exception If the query failed and was not caught by any other
    *     exception types.
    * @return mixed The result directly from $mysqli->query.
    */
   public function query($query) {
-    // If this was an insert or an update, start a transaction
+    // If this was an insert, update or delete, start a transaction
     $query_type = substr(trim($query), 0, 6);
-    if(in_array($query_type, array('insert', 'update'))) {
+    if(in_array($query_type, array('insert', 'update', 'delete'))) {
       $this->start_transaction();
-    }
-    else if($query_type === 'delete') {
-      throw new \Exception('Delete queries are not allowed.', 1205);
     }
 
     $start = microtime(true);
@@ -292,13 +287,11 @@ final class database extends \mysqli {
       ));
 
       if(stripos($database_error, 'duplicate entry') !== false) {
-        throw new DuplicateEntryException('Duplicate database entry.', 1206);
+        throw new DuplicateEntryException('Duplicate database entry.', 1205);
       }
       else {
-        throw new \Exception('Database query failed.', 1207);
+        throw new \Exception('Database query failed.', 1206);
       }
-
-
     }
 
     // Don't log info about transactions...they're a wash
@@ -369,13 +362,12 @@ final class database extends \mysqli {
    * @param int $id The value of the primary key to update.
    * @param array $attributes The attributes to set.
    * @throws \Exception If no attributes were specified.
-   * @throws \Exception If $id was not a number.
    * @return int The number of rows affected by the update (could be 0).
    */
   public function update($table, $id, $attributes) {
     // Check for errors
     if(count($attributes) === 0) {
-      throw new \Exception('Updates require at least one attribute.', 1208);
+      throw new \Exception('Updates require at least one attribute.', 1207);
     }
 
     // Build the column setting
@@ -402,6 +394,22 @@ final class database extends \mysqli {
 
     $query = 'update ' . $this->escape_identifier($table) .
       ' set ' . $columns . ' $where';
+    $this->query($query);
+
+    return $this->affected_rows;
+  }
+
+  /**
+   * Actually delete a row from a table by the primary key.
+   * 
+   * @param string $table The table to delete from.
+   * @param int $id The value of the primary key to delete.
+   * @return int The number of rows affected by the delete (could be 0).
+   */
+  public function delete($table, $id) {
+    $query = 'delete from ' . $this->escape_identifier($table) .
+      ' where ' . $this->escape_identifier($table . '_id') . ' = ' .
+      $this->escape($id);
     $this->query($query);
 
     return $this->affected_rows;
@@ -460,7 +468,7 @@ final class database extends \mysqli {
     foreach($attributes as &$item) {
       $diff = array_diff(array_keys($item), $attributes_to_set);
       if(count($diff) !== 0) {
-        throw new \Exception('Must use the same keys across all items.', 1209);
+        throw new \Exception('Must use the same keys across all items.', 1208);
       }
       else {
         // If this item is valid to insert, replace it with a "sorted" version.

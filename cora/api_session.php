@@ -11,11 +11,11 @@ namespace cora;
  *
  * @author Jon Ziebell
  */
-final class session {
+final class api_session {
 
   /**
    * The singleton.
-   * @var session
+   * @var api_session
    */
   private static $instance;
 
@@ -34,11 +34,11 @@ final class session {
 
   /**
    * Use this function to instantiate this class instead of calling new
-   * session() (which isn't allowed anyways). This avoids confusion from trying
-   * to use dependency injection by passing an instance of this class around
-   * everywhere.
+   * api_session() (which isn't allowed anyways). This avoids confusion from
+   * trying to use dependency injection by passing an instance of this class
+   * around everywhere.
    *
-   * @return session A new session object or the already created one.
+   * @return api_session A new api_session object or the already created one.
    */
   public static function get_instance() {
     if(!isset(self::$instance)) {
@@ -48,27 +48,36 @@ final class session {
   }
 
   /**
-   * Request a session from Cora. It is up to the caller of this function to
-   * store the value appropriately (like in a cookie) so that it is sent to Cora
-   * for all subsequent requests.
+   * Request an api_session from Cora. It is up to the caller of this function
+   * to store the value appropriately (like in a cookie) so that it is sent to
+   * Cora for all subsequent requests.
    *
+   * @param int $external_id An external integer pointer to another table. This
+   *     will most often be user.user_id, but could be something like
+   *     person.person_id or api_user.api_user_id.
    * @return string The generated session key.
    */
-  public function request() {
+  public function request($external_id = null) {
     $database = database::get_instance();
     $session_key = self::generate_session_key();
+
     $session_key_escaped = $database->escape($session_key);
-    $query = "
+    $external_id_escaped = $database->escape($external_id);
+    $type_escaped = $database->escape($type);
+
+    $query = '
       insert into
-        session(
-          session_key,
-          last_used_at
+        `api_session`(
+          `session_key`,
+          `external_id`,
+          `last_used_at`,
         )
       values(
-        $session_key_escaped,
+        ' . $session_key_escaped . ',
+        ' . $external_id_escaped . ',
         now()
       )
-    ";
+    ';
     $database->query($query);
 
     $this->session_key = $session_key;
@@ -76,32 +85,32 @@ final class session {
   }
 
   /**
-   * Invalidate the current session.
+   * Invalidate the current api_session.
    *
    * @return bool True if it was successfully invalidated. Could return false
-   *     for a non-existent session key or if it was already deleted.
+   *     for a non-existent api_session key or if it was already deleted.
    */
   public function invalidate() {
     $database = database::get_instance();
     $session_key_escaped = $database->escape($this->session_key);
-    $query = "
+    $query = '
       update
-        session
+        `api_session`
       set
-        deleted = 1
+        `deleted` = 1
       where
-        session_key='$session_key_escaped'
-    ";
+        `session_key` = ' . $session_key_escaped . '
+    ';
     $database->query($query);
     return $database->affected_rows === 1;
   }
 
   /**
-   * Check to see if the current session is valid.
+   * Check to see if the current api_session is valid.
    *
    * @param string $session_key
    * @return bool True if it was successfully invalidated. Could return false
-   *     for a non-existant session key or if it was already deleted.
+   *     for a non-existant api_session key or if it was already deleted.
    */
   public function is_valid() {
     if($this->session_key === null) {
@@ -110,17 +119,17 @@ final class session {
     else {
       $database = database::get_instance();
       $session_key_escaped = $database->escape($this->session_key);
-      $query = "
+      $query = '
         select
           *
         from
-          session
+          `api_session`
         where
-          session_key = $session_key_escaped and
-          deleted = 0 and
+          `session_key` = ' . $session_key_escaped . ' and
+          `deleted` = 0 and
           1
           #last used_at
-      ";
+      ';
       // TODO: if session_length=0, set it to some date far in the future
       $result = $database->query($query);
       return $result->num_rows === 1;

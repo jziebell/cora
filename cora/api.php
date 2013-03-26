@@ -23,10 +23,10 @@ abstract class api {
   protected $database;
 
   /**
-   * The session object.
-   * @var session
+   * Session object.
+   * @var api_session
    */
-  protected $session;
+  protected $api_session;
 
   /**
    * Construct and set the variables. Strip the namespace prefix 'cora\' from
@@ -35,7 +35,7 @@ abstract class api {
   final function __construct() {
     $this->resource = str_replace('cora\\', '', get_class($this));
     $this->database = database::get_instance();
-    $this->session = session::get_instance();
+    $this->api_session = api_session::get_instance();
   }
 
 }

@@ -61,16 +61,24 @@ abstract class crud extends api {
   }
 
   /**
-   * Selects an item by the primary key from the current resource.
+   * Selects an item by the primary key from the current resource. This will
+   * select both deleted and not deleted items since the specification of the id
+   * indicates you know what you want.
    *
    * @param int $id The id of the item to get.
    * @param $columns The columns from the resource to return. If not specified,
    *     all columns are returned.
    * @return array The requested item with the requested columns.
-   * @throws \Exception If the item does not exist or is deleted.
+   * @throws \Exception If the item does not exist.
    */
   final protected function _get($id, $columns = array()) {
-    $item = $this->select(array($this->resource . '_id' => $id), $columns);
+    $item = $this->select(
+      array(
+        $this->resource . '_id' => $id,
+        'deleted' => array(0, 1)
+      ),
+      $columns
+    );
     if(count($item) === 1) {
       return $item[0];
     }
@@ -127,6 +135,33 @@ abstract class crud extends api {
    */
   final protected function _delete($id) {
     return $this->update($id, array('deleted' => 1));
+  }
+
+  /**
+   * Undeletes an item with the provided id from the current resource. This will
+   * update the row and set deleted=0.
+   *
+   * @param int $id The id of the item to delete.
+   * @return int The number of rows affected by the undelete. If the item is not
+   *     deleted or not found, this value will be 0. Otherwise it will be 1.
+   */
+  final protected function _undelete($id) {
+    return $this->update($id, array('deleted' => 0));
+  }
+
+  /**
+   * Actually deletes an item with the provided id from the current resource.
+   * This does not set deleted=1. It actually removes the row. Using this
+   * function is not recommended unless it is necessary to delete personal
+   * information due to some privacy laws or else for performance.
+   *
+   * @param int $id The id of the item to delete.
+   * @return int The number of rows affected by the delete. If the item is
+   *     already deleted or not found, this value will be 0. Otherwise it will
+   *     be 1.
+   */
+  final protected function _hard_delete($id) {
+    return $this->database->hard_delete($this->resource, $id);
   }
 
 }

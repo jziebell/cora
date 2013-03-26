@@ -21,7 +21,7 @@ namespace cora;
  *
  * @author Jon Ziebell
  */
-abstract class dictionary {
+abstract class dictionary extends api {
 
   /**
    * Select items from the current resource according to the specified

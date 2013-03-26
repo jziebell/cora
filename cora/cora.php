@@ -15,8 +15,9 @@ namespace cora;
  * $session_length
  * $force_ssl
  * $requests_per_minute
- * $allow_api_user_ip_filtering
- * $api_map
+ * $enable_api_user_creation
+ * $enable_api_user_ip_filtering
+ * $custom_map
  *
  * @author Jon Ziebell
  */
@@ -27,7 +28,7 @@ final class cora {
   /**
    * Whether or not debugging is enabled. Debugging will produce additional
    * output in the API response, including data->error_file, data->error_line,
-   * data->error_trace, and the original request.
+   * data->error_trace, data->error_extra_info, and the original request.
    * @var bool
    */
   private static $debug = true;
@@ -41,7 +42,7 @@ final class cora {
   /**
    * Username to connect to the database. As a general rule, this user should
    * only have access to the databases necessary for your application and should
-   * only have select,insert, and update permissions. Cora uses 'deleted'
+   * only have select, insert, and update permissions. Cora uses 'deleted'
    * columns on all resources to indicate when that row has been removed. This
    * enables a more secure application that prevents an attacker from deleting
    * any data from your system should they successfully launch an attack of some
@@ -72,7 +73,7 @@ final class cora {
    * Session length in seconds. Cora does not create any cookies (you have to do
    * that), but will block all API requests for a session after it has been
    * inactive for this length of time. When setting the cookie from your
-   * application, use time()+cora\cora::get_session_length() to get the cookie
+   * application, use time()+cora\cora::get_setting('session_length') to get the cookie
    * expiration time. Example:
    *   86400 = 24 hours
    *   28800 = 8 hours
@@ -114,6 +115,16 @@ final class cora {
   private static $requests_per_minute = 30;
 
   /**
+   * Whether or not API user creation is enabled. If set to true, the required
+   * API methods to create new API users will be opened up. There are also a
+   * handful of API methods that are always available to provide things like
+   * statistics for API users. These can only be called when that API user is
+   * logged in.
+   * @var bool
+   */
+  private static $enable_api_user_creation = true;
+
+  /**
    * If set to true, allow API users to specify one or more IP addresses that
    * their API key can be used from. This setting doesn't actually matter that
    * much since there are no limitations (rate limiting or quotas) on API
@@ -124,39 +135,20 @@ final class cora {
    * Enabling this feature requires an additional database query per request.
    * @var bool
    */
-  private static $allow_api_user_ip_filtering = false;
+  private static $enable_api_user_ip_filtering = false;
 
   /**
-   * API functions are not exposed to the public by default. They must be added
-   * to this array first. Also, I chose to explicitly list out the arguments for
-   * each of the calls instead of using a generic $arguments parameter. This is
-   * mostly preference but I believe it makes the code more readable.
+   * API methods are all private by default. Add them here to expose them. To
+   * require a valid session (user logged in), use the 'session' key. Methods
+   * added to the 'non_session' key can be called without being logged in.
    * @var array
    */
-  private static $api_map = array(
-    // Private functions require a valid session.
-    'private' => array(
-      'sample_crud_resource' => array(
-        'select' => array('where_clause', 'columns'),
-        'select_id' => array('where_clause', 'columns'),
-        'get' => array('id', 'columns'),
-        'insert' => array('attributes', 'return_item'),
-        'update' => array('id', 'attributes'),
-        'delete' => array('id'),
-        'my_custom_function' => array('whatever', 'i', 'want')
-      ),
-      'sample_dictionary_resource' => array(
-        'select' => array('where_clause', 'columns')
-      )
+  private static $custom_map = array(
+    'session' => array(      
     ),
-    // Public functions do not require a valid session.
-    'public' => array(
-      'user' => array(
-        'insert' => array('attributes'),
+    'non_session' => array(
+      'test_user' => array(
         'log_in' => array('username', 'password')
-      ),
-      'cora\api_user' => array(
-        'insert' => array('attributes')
       )
     )
   );
@@ -210,6 +202,14 @@ final class cora {
   private $request_type;
 
   /**
+   * The map ('custom' or 'cora') that the request is part of. Requests from the
+   * custom map are ones the user has defined. Requests from the cora map are
+   * specific to Cora.
+   * @var string
+   */
+  private $request_map;
+
+  /**
    * The full JSON-encoded response sent back to the requester.
    * @var string
    */
@@ -248,10 +248,24 @@ final class cora {
   private $database;
 
   /**
-   * Session object.
-   * @var session
+   * This is a hardcoded list of API methods specific to Cora (mostly for the
+   * creation/management of API users).
+   * @var array
    */
-  private $session;
+  private $cora_map = array(
+    'session' => array(
+      'cora\api_user' => array(
+        'regenerate_api_key' => array(),
+        'get_statistics' => array(),
+        'delete' => array()
+      ),
+    ),
+    'non_session' => array(
+      'cora\api_user' => array(
+        'insert' => array('attributes')
+      )
+    )
+  );
 
   /**
    * Save the request variables for use later on. If unset, they are defaulted
@@ -268,10 +282,10 @@ final class cora {
     $this->start_timestamp = microtime(true);
     $this->request = $request;
     $this->database = database::get_instance();
-    $this->session = session::get_instance();
-
+    
     if(isset($request['session_key'])) {
-      $this->session->set_session_key($request['session_key']);
+      $api_session = api_session::get_instance();
+      $api_session->set_session_key($request['session_key']);
     }
 
     $this->api_key   = isset($request['api_key'])   ? $request['api_key']   : null;
@@ -307,23 +321,56 @@ final class cora {
       throw new \Exception('Invalid API key.', 1003);
     }
 
-    if($this->request_type === 'private' && $this->session->is_valid() === false) {
+    $api_session = api_session::get_instance();
+    if($this->request_type === 'session' && $api_session->is_valid() === false) {
       throw new \Exception('Session is expired.', 1004);
     }
   }
 
   /**
-   * Loop over all of the public functions and see if this request is in there.
-   * If so, set $this->request_type to 'public' otherwise default to 'private'.
+   * Set $this->request_map to 'custom' or 'cora' depending on where the API
+   * method is located at. Custom methods will override Cora methods, although
+   * there should never be any overlap in these anyways.
    *
+   * @throws /Exception If the resource was not found in either map.
+   * @return null
+   */
+  private function set_request_map() {
+    if(isset(self::$custom_map['session'][$this->resource]) || isset(self::$custom_map['non_session'][$this->resource])) {
+      $this->request_map = 'custom';
+    }
+    else if(isset($this->cora_map['session'][$this->resource]) || isset($this->cora_map['non_session'][$this->resource])) {
+      $this->request_map = 'cora';
+    }
+    else {
+      throw new \Exception('Requested resource is not mapped.', 1007);
+    }
+  }
+
+  /**
+   * Sets $this->request_type to 'session' or 'non_session' depending on where
+   * the API method is located at. Session methods require a valid session in
+   * order to execute.
+   *
+   * @throws \Exception If the method was not found in the map.
    * @return null
    */
   private function set_request_type() {
-    $this->request_type = 'private';
-    if(isset(self::$api_map['public'][$this->resource])) {
-      if(isset(self::$api_map['public'][$this->resource][$this->method])) {
-        $this->request_type = 'public';
-      }
+    if($this->request_map === 'cora') {
+      $map = $this->cora_map;
+    }
+    else if($this->request_map === 'custom') {
+      $map = self::$custom_map;
+    }
+
+    if(isset($map['session'][$this->resource][$this->method])) {
+      $this->request_type = 'session';
+    }
+    else if(isset($map['non_session'][$this->resource][$this->method])) {
+      $this->request_type = 'non_session';
+    }
+    else {
+      throw new \Exception('Requested method is not mapped.', 1008);
     }
   }
 
@@ -334,7 +381,6 @@ final class cora {
    *
    * @throws \Exception If the rate limit threshhold is reached.
    * @throws \Exception If SSL is required but not used.
-   * @throws \Exception If the requested resource or method is not mapped.
    * @throws \Exception If the requested method does not exist.
    * @return string The response JSON.
    */
@@ -349,33 +395,24 @@ final class cora {
     }
 
     // Sets $this->request_type to 'public' or 'private'
+    $this->set_request_map();
     $this->set_request_type();
 
     // Throw exceptions if data was missing or incorrect.
     $this->check_request_for_errors();
 
-    // Make sure requested resource/method is mapped.
-    $resource_mapped = isset(
-      self::$api_map[$this->request_type][$this->resource]
-    );
-    $method_mapped = isset(
-      self::$api_map[$this->request_type][$this->resource][$this->method]
-    );
-    if($resource_mapped === false || $method_mapped === false) {
-      throw new \Exception('Requested resource/method is not mapped.', 1007);
-    }
-
     // If the resource doesn't exist, spl_autoload_register() will throw a fatal
-    // error. The shutdown handler will "catch" it.
+    // error. The shutdown handler will "catch" it. It is not possible to catch
+    // exceptions directly from the autoloader using try/catch.
     $resource_instance = new $this->resource();
 
     // If the method doesn't exist, I can throw an exception
     if(method_exists($resource_instance, $this->method) === false) {
-      throw new \Exception('Method does not exist.', 1008);
+      throw new \Exception('Method does not exist.', 1009);
     }
 
     $arguments = $this->get_arguments(
-      self::$api_map[$this->request_type][$this->resource][$this->method]
+      self::$custom_map[$this->request_type][$this->resource][$this->method]
     );
     $this->api_response = call_user_func_array(
       array($resource_instance, $this->method), $arguments
@@ -463,60 +500,6 @@ final class cora {
   }
 
   /**
-   * Gets the session_length setting.
-   *
-   * @return int
-   */
-  public static function get_session_length() {
-    return self::$session_length;
-  }
-
-  /**
-   * Gets the force_ssl setting.
-   *
-   * @return bool
-   */
-  public static function get_force_ssl() {
-    return self::$force_ssl;
-  }
-
-  /**
-   * Gets the database_host setting.
-   *
-   * @return string
-   */
-  public static function get_database_host() {
-    return self::$database_host;
-  }
-
-  /**
-   * Gets the database_name setting.
-   *
-   * @return string
-   */
-  public static function get_database_name() {
-    return self::$database_name;
-  }
-
-  /**
-   * Gets the database_username setting.
-   *
-   * @return string
-   */
-  public static function get_database_username() {
-    return self::$database_username;
-  }
-
-  /**
-   * Gets the database_password setting.
-   *
-   * @return string
-   */
-  public static function get_database_password() {
-    return self::$database_password;
-  }
-
-  /**
    * Sets error_extra_info.
    *
    * @return null
@@ -532,6 +515,15 @@ final class cora {
    */
   public static function get_error_extra_info() {
     return $this->error_extra_info;
+  }
+
+  /**
+   * Get a setting. All of the settings are private static.
+   * @param string $setting The setting name
+   * @return mixed The setting
+   */
+  public static function get_setting($setting) {
+    return self::$$setting;
   }
 
   /**
