@@ -23,6 +23,8 @@ CREATE TABLE IF NOT EXISTS `api_session` (
   `session_id` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `session_key` char(128) NOT NULL,
   `external_id` int(10) unsigned DEFAULT NULL,
+  `timeout` int(10) unsigned DEFAULT NULL,
+  `life` int(10) unsigned DEFAULT NULL,
   `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `created_by` int(10) unsigned NOT NULL,
   `last_used_at` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
@@ -53,7 +55,6 @@ CREATE TABLE IF NOT EXISTS `api_user_ip` (
   PRIMARY KEY (`api_user_ip_id`),
   UNIQUE KEY `api_user_id` (`api_user_id`,`ip`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
-
 
 ALTER TABLE `api_user_ip`
   ADD CONSTRAINT `api_user_ip_ibfk_1` FOREIGN KEY (`api_user_id`) REFERENCES `api_user` (`api_user_id`);

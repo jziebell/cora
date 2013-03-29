@@ -27,11 +27,11 @@ spl_autoload_register();
 // Processes the request and calls the requested resource
 $cora = new cora\cora(
   array(
-    'api_key'   => isset($_POST['api_key'])   ? $_POST['api_key']   : null,
-    'resource'  => isset($_POST['resource'])  ? $_POST['resource']  : null,
-    'method'    => isset($_POST['method'])    ? $_POST['method']    : null,
-    'arguments' => (isset($_POST['arguments']) ?
-      json_decode($_POST['arguments'], true) : null
+    'api_key'   => isset($_REQUEST['api_key'])  ? $_REQUEST['api_key']  : null,
+    'resource'  => isset($_REQUEST['resource']) ? $_REQUEST['resource'] : null,
+    'method'    => isset($_REQUEST['method'])   ? $_REQUEST['method']   : null,
+    'arguments' => (isset($_REQUEST['arguments']) ?
+      json_decode($_REQUEST['arguments'], true) : null
     ),
     'session_key' => (isset($_COOKIE['session_key']) ?
       $_COOKIE['session_key'] : null

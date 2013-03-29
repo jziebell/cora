@@ -12,7 +12,7 @@ namespace cora;
  * $database_username
  * $database_password
  * $database_name
- * $session_length
+ * $cookie_domain
  * $force_ssl
  * $requests_per_minute
  * $enable_api_user_creation
@@ -70,20 +70,23 @@ final class cora {
   private static $database_name = 'cora';
 
   /**
-   * Session length in seconds. Cora does not create any cookies (you have to do
-   * that), but will block all API requests for a session after it has been
-   * inactive for this length of time. When setting the cookie from your
-   * application, use time()+cora\cora::get_setting('session_length') to get the cookie
-   * expiration time. Example:
-   *   86400 = 24 hours
-   *   28800 = 8 hours
-   *   14400 = 4 hours
-   *   0 = On browser close. Note that the client cookie will expire on browser
-   *     close but if someone took that cookie and altered the expiration time
-   *     it would still be allowed on the server indefinitely.
-   * @var int
+   * In general, set this to the domain your sessions should be active on and
+   * leave out the www prefix. For example, if your application is at
+   * "www.myapp.com", this value should be "myapp.com". If your application is
+   * at "myapp.myhomepage.com", then this value should be
+   * "myapp.myhomepage.com". You can set this value to null and it will work,
+   * but sessions will not persist if a user switches from "www.myapp.com" to
+   * "myapp.com".
+   *
+   * From http://php.net/manual/en/function.setcookie.php
+   * The domain that the cookie is available to. Setting the domain to
+   * "www.example.com" will make the cookie available in the www subdomain and
+   * higher subdomains. Cookies available to a lower domain, such as
+   * "example.com" will be available to higher subdomains, such as
+   * "www.example.com".
+   * @var string
    */
-  private static $session_length = 28800;
+  private static $cookie_domain = null;
 
   /**
    * Whether or not to force all requests to use SSL. If set to true, an error
@@ -145,10 +148,13 @@ final class cora {
    */
   private static $custom_map = array(
     'session' => array(      
+      'test_crud' => array(
+        'select' => array('where_clause', 'columns')
+      )
     ),
     'non_session' => array(
       'test_user' => array(
-        'log_in' => array('username', 'password')
+        'log_in' => array('username', 'password', 'remember_me')
       )
     )
   );
@@ -274,7 +280,7 @@ final class cora {
    * doesn't happen here is so that I can store exactly what was sent to me for
    * logging purposes.
    *
-   * @param array $request Really just the $_POST array in a normal situation.
+   * @param array $request Really just the $_REQUEST array in a normal situation.
    *     Required keys are: api_key, resource, method, arguments. The
    *     session_key value is not required.
    */
@@ -282,11 +288,6 @@ final class cora {
     $this->start_timestamp = microtime(true);
     $this->request = $request;
     $this->database = database::get_instance();
-    
-    if(isset($request['session_key'])) {
-      $api_session = api_session::get_instance();
-      $api_session->set_session_key($request['session_key']);
-    }
 
     $this->api_key   = isset($request['api_key'])   ? $request['api_key']   : null;
     $this->resource  = isset($request['resource'])  ? $request['resource']  : null;
@@ -322,7 +323,9 @@ final class cora {
     }
 
     $api_session = api_session::get_instance();
-    if($this->request_type === 'session' && $api_session->is_valid() === false) {
+    $session_is_valid = $api_session->touch($this->request['session_key']);
+    // $session_is_valid = $api_session->is_valid($this->request['session_key']);
+    if($this->request_type === 'session' && $session_is_valid === false) {
       throw new \Exception('Session is expired.', 1004);
     }
   }
@@ -418,10 +421,19 @@ final class cora {
       array($resource_instance, $this->method), $arguments
     );
 
-    $this->response_body = json_encode(array(
-      'success'=>true,
-      'data'=>$this->api_response
-    ));
+    if(self::$debug === true) {
+      $this->response_body = json_encode(array(
+        'success' => true,
+        'data' => $this->api_response,
+        'request' => $this->request
+      ));
+    }
+    else {
+      $this->response_body = json_encode(array(
+        'success' => true,
+        'data' => $this->api_response
+      ));
+    }
 
     return $this->response_body;
   }
@@ -604,24 +616,24 @@ final class cora {
 
     if(self::$debug === true) {
       $this->response_body = json_encode(array(
-        'success'=>false,
-        'data'=>array(
-          'error_message'=>$error_message,
-          'error_code'=>$error_code,
-          'error_file'=>$error_file,
-          'error_line'=>$error_line,
-          'error_trace'=>$error_trace,
-          'error_extra_info'=>self::$error_extra_info
+        'success' => false,
+        'data' => array(
+          'error_message' => $error_message,
+          'error_code' => $error_code,
+          'error_file' => $error_file,
+          'error_line' => $error_line,
+          'error_trace' => $error_trace,
+          'error_extra_info' => self::$error_extra_info
         ),
-        'request'=>$this->request
+        'request' => $this->request
       ));
     }
     else {
       $this->response_body = json_encode(array(
-        'success'=>false,
-        'data'=>array(
-          'error_message'=>$error_message,
-          'error_code'=>$error_code
+        'success' => false,
+        'data' => array(
+          'error_message' => $error_message,
+          'error_code' => $error_code
         )
       ));
     }
