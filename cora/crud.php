@@ -3,29 +3,38 @@
 namespace cora;
 
 /**
- * CRUD base class for most resources. Provides the ability to insert (create),
- * read (select), update (update), and delete (update set deleted=1).
+ * CRUD base class for most resources. Provides the ability to create (insert),
+ * read (select), update (update), and delete (update set deleted=1). There are
+ * also a few helper methods: read_id, get, undelete, and hard_delete.
  *
- * The functions defined here cannot be overridden from child classes in order
- * to prevent confusion. They provide very powerful standard functionality. By
- * overriding one of these in order to do something like set a certain value (ex
- * created_by) on create, insert, etc, you limit yourself in the future for more
- * admin-like functions where I might want to override some of those now-default
- * values.
+ * These methods can (and should) be overridden by child classes. The most
+ * basic override would simply call the parent function. More advanced overrides
+ * might set a value like created_by before creating.
  *
- * For this reason, all child classes should define separate functions as
- * necessary for inserting, updating, etc. All functions here are prefixed with
- * a single "_" in order that the standard name can still be used in the child
- * class.
+ * Child classes can, at any time, call the parent methods directly from any of
+ * their methods.
  *
  * @author Jon Ziebell
  */
 abstract class crud extends api {
 
   /**
-   * Select items from the current resource according to the specified
+   * Insert an item into the current resource with the provided attributes.
+   * Setting of the primary key column is not allowed and will be overwritten if
+   * you try.
+   *
+   * @param array $attributes An array of attributes to set for this item
+   * @return mixed The id of the inserted row or the row itself.
+   */
+  protected function create($attributes) {
+    unset($attributes[$this->resource . '_id']);
+    return $this->database->insert($this->resource, $attributes);
+  }
+
+  /**
+   * Read items from the current resource according to the specified
    * $where_clause. Only undeleted items are selected by default. This can be
-   * altered by manually specifying deleted=1 or deleted=array(0,1) in
+   * altered by manually specifying deleted=1 or deleted=array(0, 1) in
    * $where_clause.
    *
    * @param array $where_clause An array of key value pairs to search by and can
@@ -35,7 +44,7 @@ abstract class crud extends api {
    * @return array The requested items with the requested columns in a 0-indexed
    *     array.
    */
-  final protected function _select($where_clause, $columns = array()) {
+  protected function read($where_clause = array(), $columns = array()) {
     $where_clause = $where_clause + array('deleted' => 0);
     return $this->database->select($this->resource, $where_clause, $columns);
   }
@@ -51,8 +60,8 @@ abstract class crud extends api {
    * @return array The requested items with the requested colums in a primary-
    *     key-indexed array.
    */
-  final protected function _select_id($where_clause, $columns = array()) {
-    $rows = $this->select($where_clause, $columns);
+  protected function read_id($where_clause = array(), $columns = array()) {
+    $rows = $this->read($where_clause, $columns);
     $rows_id = array();
     foreach($rows as $row) {
       $rows_id[$row[$this->resource . '_id']] = $row;
@@ -71,8 +80,8 @@ abstract class crud extends api {
    * @return array The requested item with the requested columns.
    * @throws \Exception If the item does not exist.
    */
-  final protected function _get($id, $columns = array()) {
-    $item = $this->select(
+  protected function get($id, $columns = array()) {
+    $item = $this->read(
       array(
         $this->resource . '_id' => $id,
         'deleted' => array(0, 1)
@@ -86,31 +95,6 @@ abstract class crud extends api {
   }
 
   /**
-   * Insert an item into the current resource with the provided attributes.
-   * Setting of the primary key column is not allowed and will be overwritten if
-   * you try.
-   *
-   * @param array $attributes An array of attributes to set for this item
-   * @param bool $return_item If true, return the inserted row instead of the
-   *     item id. This is (and should be) a fairly uncommon use. It performs an
-   *     additional query to get the inserted data from the database to make
-   *     sure we get all of the data, including default values on the table that
-   *     are not defined in the original insert.
-   * @return mixed The id of the inserted row or the row itself depending on the
-   *     value of $return_item.
-   */
-  final protected function _insert($attributes, $return_item = false) {
-    unset($attributes[$this->resource . '_id']);
-    $item_id = $this->database->insert($this->resource, $attributes);
-    if($return_item === true) {
-      return $this->_get($item_id);
-    }
-    else {
-      return $item_id;
-    }
-  }
-
-  /**
    * Updates the current resource item with the provided id and sets the
    * provided attributes.
    *
@@ -118,7 +102,7 @@ abstract class crud extends api {
    * @param array $attributes An array of attributes to set for this item
    * @return int The number of affected rows.
    */
-  final protected function _update($id, $attributes) {
+  protected function update($id, $attributes) {
     unset($attributes[$this->resource . '_id']);
     return $this->database->update($this->resource, $id, $attributes);
   }
@@ -133,7 +117,7 @@ abstract class crud extends api {
    *     already deleted or not found, this value will be 0. Otherwise it will
    *     be 1.
    */
-  final protected function _delete($id) {
+  protected function delete($id) {
     return $this->update($id, array('deleted' => 1));
   }
 
@@ -145,7 +129,7 @@ abstract class crud extends api {
    * @return int The number of rows affected by the undelete. If the item is not
    *     deleted or not found, this value will be 0. Otherwise it will be 1.
    */
-  final protected function _undelete($id) {
+  protected function undelete($id) {
     return $this->update($id, array('deleted' => 0));
   }
 
@@ -160,7 +144,7 @@ abstract class crud extends api {
    *     already deleted or not found, this value will be 0. Otherwise it will
    *     be 1.
    */
-  final protected function _hard_delete($id) {
+  protected function hard_delete($id) {
     return $this->database->hard_delete($this->resource, $id);
   }
 

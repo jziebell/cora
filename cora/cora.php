@@ -147,9 +147,9 @@ final class cora {
    * @var array
    */
   private static $custom_map = array(
-    'session' => array(      
+    'session' => array(
       'test_crud' => array(
-        'select' => array('where_clause', 'columns')
+        'read' => array('where_clause', 'columns')
       )
     ),
     'non_session' => array(
@@ -168,9 +168,7 @@ final class cora {
   private $start_timestamp;
 
   /**
-   * The original request. It gets split up and stored in some of these other
-   * variables, but the original version is kept together in order to send back
-   * when debugging is enabled.
+   * The original request parameters.
    * @var array
    */
   private $request;
@@ -179,33 +177,39 @@ final class cora {
    * The API provided in the constructor.
    * @var string
    */
-  private $api_key;
+  // private $api_key;
 
   /**
    * The resource provided in the constructor.
    * @var string
    */
-  private $resource;
+  // private $resource;
 
   /**
    * The method provided in the constructor.
    * @var string
    */
-  private $method;
+  // private $method;
 
   /**
    * The arguments provided in the constructor. This is an associative array
    * that should basically match the signature of the method I'm trying to call.
    * @var array
    */
-  private $arguments;
+  // private $arguments;
+
+  /**
+   * The batch provided in the constructor.
+   * @var string
+   */
+  // private $batch;
 
   /**
    * Whether or not this API request is public (does not require a valid
    * session) or private (does require a valid session).
    * @var string
    */
-  private $request_type;
+  // private $request_type;
 
   /**
    * The map ('custom' or 'cora') that the request is part of. Requests from the
@@ -213,7 +217,7 @@ final class cora {
    * specific to Cora.
    * @var string
    */
-  private $request_map;
+  // private $request_map;
 
   /**
    * The full JSON-encoded response sent back to the requester.
@@ -261,38 +265,33 @@ final class cora {
   private $cora_map = array(
     'session' => array(
       'cora\api_user' => array(
+        'log_out' => array(),
         'regenerate_api_key' => array(),
         'get_statistics' => array(),
         'delete' => array()
-      ),
+      )
     ),
     'non_session' => array(
       'cora\api_user' => array(
-        'insert' => array('attributes')
+        'log_in' => array('username', 'password', 'remember_me'),
+        'create' => array('attributes')
       )
     )
   );
 
   /**
    * Save the request variables for use later on. If unset, they are defaulted
-   * to null. Any of these values except for session_key being null will throw
-   * an exception as soon as you try to process the request. The reason that
-   * doesn't happen here is so that I can store exactly what was sent to me for
-   * logging purposes.
+   * to null. Any of these values being null will throw an exception as soon as
+   * you try to process the request. The reason that doesn't happen here is so
+   * that I can store exactly what was sent to me for logging purposes.
    *
-   * @param array $request Really just the $_REQUEST array in a normal situation.
-   *     Required keys are: api_key, resource, method, arguments. The
-   *     session_key value is not required.
+   * @param array $request Really just the $_REQUEST array in a normal
+   *     situation. Required keys are: api_key, resource, method, arguments.
    */
-  public function __construct($request) {
+  public function __construct() {
     $this->start_timestamp = microtime(true);
-    $this->request = $request;
     $this->database = database::get_instance();
-
-    $this->api_key   = isset($request['api_key'])   ? $request['api_key']   : null;
-    $this->resource  = isset($request['resource'])  ? $request['resource']  : null;
-    $this->method    = isset($request['method'])    ? $request['method']    : null;
-    $this->arguments = isset($request['arguments']) ? $request['arguments'] : null;
+    $this->database->reset_statistics();
   }
 
   /**
@@ -305,45 +304,68 @@ final class cora {
    * @throws \Exception If a private method was called without a valid session.
    * @return null
    */
-  private function check_request_for_errors() {
-    if($this->api_key === null) {
+  private function check_request_for_errors($request, $request_map, $request_type) {
+    if($request['api_key'] === null) {
       throw new \Exception('API Key is required.', 1000);
     }
-    if($this->resource === null) {
+    if($request['resource'] === null) {
       throw new \Exception('Resource is required.', 1001);
     }
-    if($this->method === null) {
+    if($request['method'] === null) {
       throw new \Exception('Method is required.', 1002);
     }
 
+    // Make sure the API key that was sent is valid.
     $api_user_resource = new api_user();
-    $api_user = $api_user_resource->select(array('api_key' => $this->api_key));
-    if(count($api_user) !== 1) {
+    // $api_user = $api_user_resource->read(array('api_key' => $request['api_key']));
+    // if(count($api_user) !== 1) {
+    if($api_user_resource->is_valid_api_key($request['api_key']) === false) {
       throw new \Exception('Invalid API key.', 1003);
     }
 
-    $api_session = api_session::get_instance();
-    $session_is_valid = $api_session->touch($this->request['session_key']);
-    // $session_is_valid = $api_session->is_valid($this->request['session_key']);
-    if($this->request_type === 'session' && $session_is_valid === false) {
-      throw new \Exception('Session is expired.', 1004);
+    // Get the appropriate session object. This has to be done always because
+    // the session must be available even for non-session requests in the case
+    // of something like logging in.
+    switch($request_map) {
+      case 'custom':
+        $session = api_session::get_instance();
+      break;
+      case 'cora':
+        $session = api_user_session::get_instance();
+      break;
+    }
+
+    // If the request requires a session, make sure it's valid.
+    if($request_type === 'session') {
+      if($request_map === 'custom') {
+        $session_is_valid = $session->touch();
+        if($session_is_valid === false) {
+          throw new \Exception('API session is expired.', 1004);
+        }
+      }
+      else if($request_map === 'cora') {
+        $session_is_valid = $session->touch();
+        if($session_is_valid === false) {
+          throw new \Exception('API user session is expired.', 1010);
+        }
+      }
     }
   }
 
   /**
-   * Set $this->request_map to 'custom' or 'cora' depending on where the API
-   * method is located at. Custom methods will override Cora methods, although
-   * there should never be any overlap in these anyways.
+   * Returns 'custom' or 'cora' depending on where the API method is located
+   * at. Custom methods will override Cora methods, although there should
+   * never be any overlap in these anyways.
    *
-   * @throws /Exception If the resource was not found in either map.
-   * @return null
+   * @throws \Exception If the resource was not found in either map.
+   * @return string The map.
    */
-  private function set_request_map() {
-    if(isset(self::$custom_map['session'][$this->resource]) || isset(self::$custom_map['non_session'][$this->resource])) {
-      $this->request_map = 'custom';
+  private function get_request_map($request) {
+    if(isset(self::$custom_map['session'][$request['resource']]) || isset(self::$custom_map['non_session'][$request['resource']])) {
+      return 'custom';
     }
-    else if(isset($this->cora_map['session'][$this->resource]) || isset($this->cora_map['non_session'][$this->resource])) {
-      $this->request_map = 'cora';
+    else if(isset($this->cora_map['session'][$request['resource']]) || isset($this->cora_map['non_session'][$request['resource']])) {
+      return 'cora';
     }
     else {
       throw new \Exception('Requested resource is not mapped.', 1007);
@@ -351,26 +373,25 @@ final class cora {
   }
 
   /**
-   * Sets $this->request_type to 'session' or 'non_session' depending on where
-   * the API method is located at. Session methods require a valid session in
-   * order to execute.
+   * Returns 'session' or 'non_session' depending on where the API method is
+   * located at. Session methods require a valid session in order to execute.
    *
    * @throws \Exception If the method was not found in the map.
-   * @return null
+   * @return string The type.
    */
-  private function set_request_type() {
-    if($this->request_map === 'cora') {
+  private function get_request_type($request, $request_map) {
+    if($request_map === 'cora') {
       $map = $this->cora_map;
     }
-    else if($this->request_map === 'custom') {
+    else if($request_map === 'custom') {
       $map = self::$custom_map;
     }
 
-    if(isset($map['session'][$this->resource][$this->method])) {
-      $this->request_type = 'session';
+    if(isset($map['session'][$request['resource']][$request['method']])) {
+      return 'session';
     }
-    else if(isset($map['non_session'][$this->resource][$this->method])) {
-      $this->request_type = 'non_session';
+    else if(isset($map['non_session'][$request['resource']][$request['method']])) {
+      return 'non_session';
     }
     else {
       throw new \Exception('Requested method is not mapped.', 1008);
@@ -387,8 +408,12 @@ final class cora {
    * @throws \Exception If the requested method does not exist.
    * @return string The response JSON.
    */
-  public function process_api_request() {
-    if($this->over_rate_limit()) {
+  public function process_request($request) {
+    // This is necessary in order for the shutdown handler/log function to have
+    // access to this data, but it's not used anywhere else.
+    $this->request = $request;
+
+    if($this->over_rate_limit() === true) {
       throw new \Exception('Rate limit reached.', 1005);
     }
 
@@ -397,35 +422,49 @@ final class cora {
       throw new \Exception('Request must be sent over HTTPS.', 1006);
     }
 
-    // Sets $this->request_type to 'public' or 'private'
-    $this->set_request_map();
-    $this->set_request_type();
+    $request['api_key'] = $request['api_key'];
 
-    // Throw exceptions if data was missing or incorrect.
-    $this->check_request_for_errors();
+    // Sets $request_type to 'public' or 'private'
+    $request_map = $this->get_request_map($request);
+    $request_type = $this->get_request_type($request, $request_map);
+
+    // Throw exceptions if data was missing or incorrect. TODO: API key is not
+    // set in each individual request...that's on the parent. Need to adjust
+    // for this and make sure it works in all cases.
+    $this->check_request_for_errors($request, $request_map, $request_type);
 
     // If the resource doesn't exist, spl_autoload_register() will throw a fatal
     // error. The shutdown handler will "catch" it. It is not possible to catch
     // exceptions directly from the autoloader using try/catch.
-    $resource_instance = new $this->resource();
+    $resource_instance = new $request['resource']();
 
-    // If the method doesn't exist, I can throw an exception
-    if(method_exists($resource_instance, $this->method) === false) {
+    // If the method doesn't exist
+    if(method_exists($resource_instance, $request['method']) === false) {
       throw new \Exception('Method does not exist.', 1009);
     }
 
-    $arguments = $this->get_arguments(
-      self::$custom_map[$this->request_type][$this->resource][$this->method]
-    );
+    if($request_map === 'custom') {
+      $arguments = $this->get_arguments(
+        $request,
+        self::$custom_map[$request_type][$request['resource']][$request['method']]
+      );
+    }
+    else if($request_map === 'cora') {
+      $arguments = $this->get_arguments(
+        $request,
+        $this->cora_map[$request_type][$request['resource']][$request['method']]
+      );
+    }
+
     $this->api_response = call_user_func_array(
-      array($resource_instance, $this->method), $arguments
+      array($resource_instance, $request['method']), $arguments
     );
 
     if(self::$debug === true) {
       $this->response_body = json_encode(array(
         'success' => true,
         'data' => $this->api_response,
-        'request' => $this->request
+        'request' => $request
       ));
     }
     else {
@@ -440,7 +479,7 @@ final class cora {
 
   /**
    * Check to see if the request from the current IP address needs to be rate
-   * limited. If $this->requests_per_minute is null then there is no rate
+   * limited. If $requests_per_minute is null then there is no rate
    * limiting.
    *
    * @return bool If this request puts us over the rate threshold.
@@ -460,28 +499,34 @@ final class cora {
 
   /**
    * Log the request and response to the database. The logged response is
-   * truncated to 128kb for sanity. Any field in the request with the key
-   * 'password', regardless of the resource and method, is replaced with the
-   * text '[REMOVED]' for security.
+   * truncated to 128kb for sanity.
    *
+   * @param array $request The request to log. If not provided, uses the original request.
    * @return null
    */
-  private function log_request() {
+  private function log_request($request) {
     $response_time = microtime(true) - $this->start_timestamp;
     $response_body = substr($this->response_body, 0, 131072);
     $response_has_error = $this->response_error_code !== null;
 
-    $request_arguments = $this->arguments;
-    if(isset($request_arguments['password'])) {
-      $request_arguments['password'] = '[REMOVED]';
+    if($request['arguments'] === null) {
+      $request_arguments = null;
+    }
+    else {
+      $request_arguments = json_encode($request['arguments']);
     }
 
+    // Eh, so here's the deal. I need this log to happen in the shutdown handler
+    // so that it is guaranteed to run even in the case of an exception or
+    // something. Also, I'm registering multiple shutdown functions which
+    // probably isn't good and causes the API calls to log in reverse order.
+
     $api_log_resource = new api_log();
-    $api_log_resource->insert(array(
-      'request_api_key'       =>  $this->api_key,
-      'request_resource'      =>  $this->resource,
-      'request_method'        =>  $this->method,
-      'request_arguments'     =>  json_encode($request_arguments),
+    $api_log_resource->log(array(
+      'request_api_key'       =>  $request['api_key'],
+      'request_resource'      =>  $request['resource'],
+      'request_method'        =>  $request['method'],
+      'request_arguments'     =>  $request_arguments,
       'response_has_error'    =>  $response_has_error,
       'response_body'         =>  $response_body,
       'response_time'         =>  $response_time,
@@ -498,14 +543,16 @@ final class cora {
    * @param array $argument_keys The keys to get.
    * @return array The requested arguments. If one is not set, null is returned.
    */
-  private function get_arguments($argument_keys) {
+  private function get_arguments($request, $argument_keys) {
     $arguments = array();
     foreach($argument_keys as $argument_key) {
-      if($this->arguments !== null && isset($this->arguments[$argument_key])) {
-        $arguments[$argument_key] = $this->arguments[$argument_key];
+      if($request['arguments'] !== null && isset($request['arguments'][$argument_key])) {
+        // $arguments[$argument_key] = $request['arguments'][$argument_key];
+        $arguments[] = $request['arguments'][$argument_key];
       }
       else {
-        $arguments[$argument_key] = null;
+        return $arguments;
+        // $arguments[$argument_key] = null;
       }
     }
     return $arguments;
@@ -585,7 +632,7 @@ final class cora {
    */
   public function shutdown_handler() {
     if($this->response_error_code !== 1005) { // 1005 = Rate limit reached.
-      $this->log_request();
+      $this->log_request($this->request);
       $error = error_get_last();
       if($error !== null) {
         die($this->generate_error_response(
@@ -637,7 +684,6 @@ final class cora {
         )
       ));
     }
-
     return $this->response_body;
   }
 

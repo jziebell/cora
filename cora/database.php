@@ -62,7 +62,7 @@ final class database extends \mysqli {
       cora::get_setting('database_password')
     );
 
-    if($this->connect_error) {
+    if($this->connect_error !== null) {
       throw new \Exception('Could not connect to database.', 1200);
     }
 
@@ -80,9 +80,20 @@ final class database extends \mysqli {
    * @return null
    */
   public function __destruct() {
-    if(self::$transaction_started) {
+    if(self::$transaction_started === true) {
       $this->commit_transaction();
     }
+  }
+
+  /**
+   * Reset the query count and query time. This is used when doing batch API
+   * calls so that subsequent calls in the sequence have proper data in the log.
+   *
+   * @return null
+   */
+  public function reset_statistics() {
+    self::$query_count = 0;
+    self::$query_time = 0;
   }
 
   /**
@@ -94,7 +105,7 @@ final class database extends \mysqli {
    */
   private function start_transaction() {
     if(self::$transaction_started === false) {
-      $result = $this->query('start transaction');
+      $result = $this->query('start transaction', false);
       if($result === false) {
         throw new \Exception('Failed to start database transaction.', 1201);
       }
@@ -112,7 +123,7 @@ final class database extends \mysqli {
   private function commit_transaction() {
     if(self::$transaction_started === true) {
       self::$transaction_started = false;
-      $result = $this->query('commit');
+      $result = $this->query('commit', false);
       if($result === false) {
         throw new \Exception('Failed to commit database transaction.', 1202);
       }
@@ -128,7 +139,7 @@ final class database extends \mysqli {
   private function rollback_transaction() {
     if(self::$transaction_started === true) {
       self::$transaction_started = false;
-      $result = $this->query('rollback');
+      $result = $this->query('rollback', false);
       if($result === false) {
         throw new \Exception('Failed to rollback database transaction.', 1203);
       }
@@ -181,7 +192,7 @@ final class database extends \mysqli {
    *     [A-Za-z0-9_]. That would make it invalid for use in MySQL.
    * @return string The escaped identifier.
    */
-  private function escape_identifier($identifier) {
+  public function escape_identifier($identifier) {
     if(preg_match('/^\w+$/', $identifier)) {
       return '`' . $identifier . '`';
     }
@@ -253,20 +264,24 @@ final class database extends \mysqli {
    * The exceptions are broken up somewhat by type to make it easier to catch
    * and handle these exceptions if desired.
    *
-   * This will start a transaction if the query begins with 'insert', 'update',
-   * or 'delete' and a transaction has not already been started.
+   * This will start a transaction if the query begins with 'insert',
+   * 'update', or 'delete' and a transaction has not already been started.
    *
    * IMPORTANT: YOU MUST SANTIZE YOUR OWN DATABASE QUERY WHEN USING THIS
    * FUNCTION DIRECTLY. THIS FUNCTION DOES NOT DO IT FOR YOU.
    *
    * @param string $query The query to execute.
+   * @param bool $include_in_log If true, this query will increment
+   * self::$query_count. This is used for logging statistics in api_log and
+   * excludes things like inserts into the api_log table and transaction
+   * queries since those are overhead.
    * @throws DuplicateEntryException if the query failed due to a duplicate
-   *     entry (unique key violation)
+   * entry (unique key violation)
    * @throws \Exception If the query failed and was not caught by any other
-   *     exception types.
+   * exception types.
    * @return mixed The result directly from $mysqli->query.
    */
-  public function query($query) {
+  public function query($query, $include_in_log = true) {
     // If this was an insert, update or delete, start a transaction
     $query_type = substr(trim($query), 0, 6);
     if(in_array($query_type, array('insert', 'update', 'delete'))) {
@@ -295,9 +310,9 @@ final class database extends \mysqli {
     }
 
     // Don't log info about transactions...they're a wash
-    if($query !== 'start transaction' && $query !== 'commit') {
+    if($include_in_log === true) {
       self::$query_count++;
-      self::$query_time += ($stop-$start);
+      self::$query_time += ($stop - $start);
     }
 
     return $result;
@@ -393,7 +408,8 @@ final class database extends \mysqli {
       );
 
     $query = 'update ' . $this->escape_identifier($table) .
-      ' set ' . $columns . ' $where';
+      ' set ' . $columns . ' ' . $where;
+
     $this->query($query);
 
     return $this->affected_rows;
@@ -401,7 +417,7 @@ final class database extends \mysqli {
 
   /**
    * Actually delete a row from a table by the primary key.
-   * 
+   *
    * @param string $table The table to delete from.
    * @param int $id The value of the primary key to delete.
    * @return int The number of rows affected by the delete (could be 0).
@@ -440,8 +456,7 @@ final class database extends \mysqli {
   }
 
   /**
-   * Insert a row into the specified table. This does not currently support
-   * inserting multiple rows in a single query.
+   * Insert multiple rows into the specified table.
    *
    * @param string $table The table to insert into.
    * @param array $attributes An array of items to insert.
@@ -450,7 +465,8 @@ final class database extends \mysqli {
    *     insert.
    * @return int The primary key of the first inserted row.
    */
-  public function multi_insert($table, $attributes) {
+/* This is cool and all, but leaving it out until I figure out auditing and whether or not it will work properly with it */
+/*  public function multi_insert($table, $attributes) {
 
     // Get a list of all keys that appear in all items to insert.
     if(count($attributes) === 1) {
@@ -500,7 +516,7 @@ final class database extends \mysqli {
 
     $this->query($query);
     return $this->insert_id;
-  }
+  }*/
 
   /**
    * Gets the number of queries that have been executed.

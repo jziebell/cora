@@ -8,7 +8,7 @@ namespace cora;
  *
  * @author Jon Ziebell
  */
-final class api_session extends session {
+final class api_user_session extends session {
 
   /**
    * The singleton.
@@ -45,6 +45,6 @@ final class api_session extends session {
    */
   public static function has_instance() {
     return isset(self::$instance);
-  }
+  }  
 
 }

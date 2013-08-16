@@ -36,7 +36,7 @@ abstract class dictionary extends api {
    * @return array The requested items with the requested columns in a 0-indexed
    *     array.
    */
-  final protected function _select($where_clause, $columns = array()) {
+  final protected function read($where_clause = array(), $columns = array()) {
     $where_clause = $where_clause + array('deleted' => 0);
     return $this->database->select($this->resource, $where_clause, $columns);
   }
@@ -52,8 +52,8 @@ abstract class dictionary extends api {
    * @return array The requested items with the requested colums in a primary-
    *     key-indexed array.
    */
-  final protected function _select_id($where_clause, $columns = array()) {
-    $rows = $this->select($where_clause, $columns);
+  final protected function read_id($where_clause = array(), $columns = array()) {
+    $rows = $this->read($where_clause, $columns);
     $rows_id = array();
     foreach($rows as $row) {
       $rows_id[$row[$this->resource . '_id']] = $row;
@@ -70,8 +70,8 @@ abstract class dictionary extends api {
    * @return array The requested item with the requested columns.
    * @throws \Exception If the item does not exist or is deleted.
    */
-  final protected function _get($id, $columns = array()) {
-    $item = $this->select(array($this->resource . '_id' => $id));
+  final protected function get($id, $columns = array()) {
+    $item = $this->read(array($this->resource . '_id' => $id));
     if(count($item) === 1) {
       return $item[0];
     }

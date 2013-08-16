@@ -24,18 +24,43 @@ abstract class api {
 
   /**
    * Session object.
-   * @var api_session
+   * @var session
    */
-  protected $api_session;
+  protected $session;
 
   /**
-   * Construct and set the variables. Strip the namespace prefix 'cora\' from
-   * the resource name.
+   * Construct and set the variables. The namespace is stripped from the
+   * resource variable. Anything that extends crud, dictionary, or API will use
+   * this constructor. This means that there should be no arguments or every
+   * time you want to use one of those resources you will have to find a way to
+   * pass in the arguments. Using a couple singletons here makes that a lot
+   * simpler.
    */
   final function __construct() {
-    $this->resource = str_replace('cora\\', '', get_class($this));
+    $class_parts = explode('\\', get_class($this));
+    $this->resource = end($class_parts);
     $this->database = database::get_instance();
-    $this->api_session = api_session::get_instance();
+
+    // Set the proper session variable. This is weird but necessary since Cora
+    // supports the ability to log in to manage your API key as well as the
+    // ability to log in generically. Cora will instantiate one of these
+    // depending on what the request was.
+    if(api_session::has_instance()) {
+      $this->session = api_session::get_instance();
+    }
+    else if(api_user_session::has_instance()) {
+      $this->session = api_user_session::get_instance();
+    }
+
+
+    // TODO: can't check this because api_log extends crud which extends api and
+    // it is created BEFORE the session is. I could move stuff around but then
+    // rate limiting happens way after it should.
+
+    
+    // else {
+    //   throw new \Exception('Session object not created.' . $this->resource, 6000);
+    // }
   }
 
 }
