@@ -107,22 +107,18 @@ class api_user extends crud {
 
   /**
    * Check to see if an API key is valid.
-   *
-   * Important: Do not expose this function publicly and use it there. It is
-   * excluded from log statistics because it is only used as a check from Cora
-   * to make sure the provided API key is valid. Exposing this would cause any
-   * API calls to it to have inaccurate query log data.
    * 
    * @param string $api_key The API key to look up.
    * @return bool Whether or not the API key is valid.
    */
   public function is_valid_api_key($api_key) {
-    $api_key_escaped = $this->database->escape($api_key);
-    $query = 'select * from `api_user` where `api_key`=' . $api_key_escaped . ' and `deleted`=0';
+    // $api_key_escaped = $this->database->escape($api_key);
+    // $query = 'select * from `api_user` where `api_key`=' . $api_key_escaped . ' and `deleted`=0';
+    $api_users = $this->read(array('api_key' => $api_key));
+    return (count($api_users) === 1);
 
-    // See function documentation. This function is only used as overhead.
-    $result = $this->database->query($query, false);
-    return $result->num_rows === 1;
+    // $result = $this->database->query($query);
+    // return $result->num_rows === 1;
   }
 
   /**

@@ -192,9 +192,7 @@ abstract class session {
         )
     ';
 
-    // Touching a session to keep it up to date is considered overhead and not
-    // included in the log statistics.
-    $database->query($query, false);
+    $database->query($query);
 
     // If there was one row updated, we're good. Otherwise we need to check the
     // info string to see if a row matched but just didn't need updating (if two

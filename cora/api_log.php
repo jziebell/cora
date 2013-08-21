@@ -12,48 +12,15 @@ class api_log extends crud {
 
 	/**
 	 * Insert an item into the api_log resource. Force the IP to the request IP
-	 * and disallow overriding the timestamp. This is essentially the same thing
-	 * as create, but I run the query myself so I can exclude it from being
-	 * included in the query statistics. For single requests it doesn't actually
-	 * matter, but for batch requests I have to prevent that since doing one log
-	 * would affect the statistics for the next log.
+	 * and disallow overriding the timestamp.
 	 *
 	 * @param array $attributes The attributes to insert.
 	 * @return int The ID of the inserted row.
 	 */
-	public function log($attributes) {
+	public function create($attributes) {
 		$attributes['request_ip'] = ip2long($_SERVER['REMOTE_ADDR']);
 		unset($attributes['request_timestamp']);
-
-		$query = '
-			insert into api_log(
-	      `request_api_key`,
-	      `request_ip`,
-	      `request_resource`,
-	      `request_method`,
-	      `request_arguments`,
-	      `response_has_error`,
-	      `response_body`,
-	      `response_time`,
-	      `response_query_count`,
-	      `response_query_time`
-			)
-			values(
-	      ' . $this->database->escape($attributes['request_api_key']) . ',
-	      ' . $this->database->escape($attributes['request_ip']) . ',
-	      ' . $this->database->escape($attributes['request_resource']) . ',
-	      ' . $this->database->escape($attributes['request_method']) . ',
-	      ' . $this->database->escape($attributes['request_arguments']) . ',
-	      ' . $this->database->escape($attributes['response_has_error']) . ',
-	      ' . $this->database->escape($attributes['response_body']) . ',
-	      ' . $this->database->escape($attributes['response_time']) . ',
-	      ' . $this->database->escape($attributes['response_query_count']) . ',
-	      ' . $this->database->escape($attributes['response_query_time']) . '
-			)
-		';
-
-		// See function documentation. Exclude this from the query statistics.
-		return $this->database->query($query, false);
+		return parent::create($attributes);
 	}
 
 	/**
@@ -85,7 +52,7 @@ class api_log extends crud {
 		// Getting the number of requests since a certain date is considered
 		// overhead since it's only used for rate limiting. See "Important" note in
 		// documentation.
-		$result = $this->database->query($query, false);
+		$result = $this->database->query($query);
 		$row = $result->fetch_assoc();
 		return $row['number_requests_since'];
 	}

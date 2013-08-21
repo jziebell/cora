@@ -105,7 +105,7 @@ final class database extends \mysqli {
    */
   private function start_transaction() {
     if(self::$transaction_started === false) {
-      $result = $this->query('start transaction', false);
+      $result = $this->query('start transaction');
       if($result === false) {
         throw new \Exception('Failed to start database transaction.', 1201);
       }
@@ -123,7 +123,7 @@ final class database extends \mysqli {
   private function commit_transaction() {
     if(self::$transaction_started === true) {
       self::$transaction_started = false;
-      $result = $this->query('commit', false);
+      $result = $this->query('commit');
       if($result === false) {
         throw new \Exception('Failed to commit database transaction.', 1202);
       }
@@ -139,7 +139,7 @@ final class database extends \mysqli {
   private function rollback_transaction() {
     if(self::$transaction_started === true) {
       self::$transaction_started = false;
-      $result = $this->query('rollback', false);
+      $result = $this->query('rollback');
       if($result === false) {
         throw new \Exception('Failed to rollback database transaction.', 1203);
       }
@@ -271,17 +271,13 @@ final class database extends \mysqli {
    * FUNCTION DIRECTLY. THIS FUNCTION DOES NOT DO IT FOR YOU.
    *
    * @param string $query The query to execute.
-   * @param bool $include_in_log If true, this query will increment
-   * self::$query_count. This is used for logging statistics in api_log and
-   * excludes things like inserts into the api_log table and transaction
-   * queries since those are overhead.
    * @throws DuplicateEntryException if the query failed due to a duplicate
    * entry (unique key violation)
    * @throws \Exception If the query failed and was not caught by any other
    * exception types.
    * @return mixed The result directly from $mysqli->query.
    */
-  public function query($query, $include_in_log = true) {
+  public function query($query) {
     // If this was an insert, update or delete, start a transaction
     $query_type = substr(trim($query), 0, 6);
     if(in_array($query_type, array('insert', 'update', 'delete'))) {
@@ -310,10 +306,8 @@ final class database extends \mysqli {
     }
 
     // Don't log info about transactions...they're a wash
-    if($include_in_log === true) {
-      self::$query_count++;
-      self::$query_time += ($stop - $start);
-    }
+    self::$query_count++;
+    self::$query_time += ($stop - $start);
 
     return $result;
   }
