@@ -15,6 +15,7 @@ namespace cora;
  * $cookie_domain
  * $force_ssl
  * $requests_per_minute
+ * $batch_limit
  * $enable_api_user_creation
  * $enable_api_user_ip_filtering
  * $custom_map
@@ -23,157 +24,125 @@ namespace cora;
  */
 final class cora {
 
-  /* BEGIN SETTINGS */
+  private static $settings = array(
+     // Whether or not debugging is enabled. Debugging will produce additional
+     // output in the API response, including data->error_file,
+     // data->error_line, data->error_trace, data->error_extra_info, and the
+     // original request.
+    'debug' => true,
 
-  /**
-   * Whether or not debugging is enabled. Debugging will produce additional
-   * output in the API response, including data->error_file, data->error_line,
-   * data->error_trace, data->error_extra_info, and the original request.
-   * @var bool
-   */
-  private static $debug = true;
-  // TODO: Write in default/recommended values
+    // Database host. Can be IP or hostname.
+    'database_host' => 'localhost',
 
-  /**
-   * Database host. Can be IP or hostname.
-   * @var string
-   */
-  private static $database_host = 'localhost';
+    // Username to connect to the database. As a general rule, this user should
+    // only have access to the databases necessary for your application and
+    // should only have select, insert, and update permissions. Cora uses
+    // 'deleted' columns on all resources to indicate when that row has been
+    // removed. This enables a more secure application that prevents an attacker
+    // from deleting any data from your system should they successfully launch
+    // an attack of some sort (like SQL injection).
+    'database_username' => 'cora',
 
-  /**
-   * Username to connect to the database. As a general rule, this user should
-   * only have access to the databases necessary for your application and should
-   * only have select, insert, and update permissions. Cora uses 'deleted'
-   * columns on all resources to indicate when that row has been removed. This
-   * enables a more secure application that prevents an attacker from deleting
-   * any data from your system should they successfully launch an attack of some
-   * sort (like SQL injection).
-   *
-   * Here's an example user creation query:
-   *   create user 'username'@'localhost' identified by 'password';
-   *   grant select,insert,update on database_name.* to 'username'@'localhost';
-   * @var string
-   */
-  private static $database_username = 'cora';
+    // Password to connect to the database.
+    'database_password' => 'JbbSv5eMFaBhRZs8',
 
-  /**
-   * Password to connect to the database.
-   * @var string
-   */
-  private static $database_password = 'JbbSv5eMFaBhRZs8';
+    // Default database name. If you have more than one database in your
+    // application, you can set this to null and call $database->select_db() as
+    // necessary.
+    'database_name' => 'cora',
 
-  /**
-   * Default database name. If you have more than one database in your
-   * application, you can set this to null and call $database->select_db() as
-   * necessary.
-   * @var string
-   */
-  private static $database_name = 'cora';
+    // In general, set this to the domain your sessions should be active on and
+    // leave out the www prefix. For example, if your application is at
+    // "www.myapp.com", this value should be "myapp.com". If your application is
+    // at "myapp.myhomepage.com", then this value should be
+    // "myapp.myhomepage.com". You can set this value to null and it will work,
+    // but sessions will not persist if a user switches from "www.myapp.com" to
+    // "myapp.com". TODO: Figure out why setting this to null works and if it's
+    // recommended.
+   
+    // From http://php.net/manual/en/function.setcookie.php The domain that the
+    // cookie is available to. Setting the domain to "www.example.com" will make
+    // the cookie available in the www subdomain and higher subdomains. Cookies
+    // available to a lower domain, such as "example.com" will be available to
+    // higher subdomains, such as "www.example.com".
+    'cookie_domain' => null,
 
-  /**
-   * In general, set this to the domain your sessions should be active on and
-   * leave out the www prefix. For example, if your application is at
-   * "www.myapp.com", this value should be "myapp.com". If your application is
-   * at "myapp.myhomepage.com", then this value should be
-   * "myapp.myhomepage.com". You can set this value to null and it will work,
-   * but sessions will not persist if a user switches from "www.myapp.com" to
-   * "myapp.com".
-   *
-   * From http://php.net/manual/en/function.setcookie.php
-   * The domain that the cookie is available to. Setting the domain to
-   * "www.example.com" will make the cookie available in the www subdomain and
-   * higher subdomains. Cookies available to a lower domain, such as
-   * "example.com" will be available to higher subdomains, such as
-   * "www.example.com".
-   * @var string
-   */
-  private static $cookie_domain = null;
+    // Whether or not to force all requests to use SSL. If set to true, an error
+    // will be returned if SSL is not used. This should generally be set to true
+    // unless you're in a development environment.
+    //
+    // Cora does not offer any sort of protection against someone altering (man
+    // in the middle) or resending (replay) the request except via SSL. This
+    // would require doing cumbersome things like sending a timestamp or sending
+    // a hash calculated from some secret. So, even if you don't care if someone
+    // sees your data, the API is not secure except through SSL.
+    'force_ssl' => false,
 
-  /**
-   * Whether or not to force all requests to use SSL. If set to true, an error
-   * will be returned if SSL is not used. This should generally be set to true
-   * unless you're in a development environment.
-   *
-   * Cora does not offer any sort of protection against someone altering (man in
-   * the middle) or resending (replay) the request except via SSL. This would
-   * require doing cumbersome things like sending a timestamp or sending a hash
-   * calculated from some secret. So, even if you don't care if someone sees
-   * your data, the API is not secure except through SSL.
-   * @var bool
-   */
-  private static $force_ssl = false;
+    // The number of requests allowed from a given IP address per minute. Past
+    // this point all requests will return an error (without being logged). Set
+    // to null to disable rate limiting entirely. Rate limit enforcement is
+    // recommended and takes one additional database query per request when
+    // enabled.
+    //
+    // Rate limiting is done with a "bucket". Only requests made in the past 60
+    // seconds count towards the total. Therefore there is no set "lockout"
+    // period; the limit will just be lifted once one the number of requests in
+    // the past minute is less than the value here.
+    'requests_per_minute' => 30,
 
-  /**
-   * The number of requests allowed from a given IP address per minute. Past
-   * this point all requests will return an error (without being logged). Set
-   * to null to disable rate limiting entirely. Rate limit enforcement is
-   * recommended and takes one additional database query per request when
-   * enabled.
-   *
-   * Rate limiting is done with a "bucket". Only requests made in the past 60
-   * seconds count towards the total. Therefore there is no set "lockout"
-   * period; the limit will just be lifted once one the number of requests in
-   * the past minute is less than the value here.
-   * @var int
-   */
-  private static $requests_per_minute = 30;
+    // The limit to the number of requests that can be batched together. For no
+    // limit, set to null...although that's not recommended as someone could
+    // malaciously send a lot of requests. While rate limiting is technically
+    // done per call, it's possible to break that limit in a single http request
+    // by batching calls together since a single batched API call is guaranteed
+    // not to fail in the middle due to rate limits. Making this unlimited isn't
+    // a great idea because someone could do a one-time gigantic batch request
+    // and bog down the API.
+    'batch_limit' => 10,
 
-  /**
-   * Whether or not API user creation is enabled. If set to true, the required
-   * API methods to create new API users will be opened up. There are also a
-   * handful of API methods that are always available to provide things like
-   * statistics for API users. These can only be called when that API user is
-   * logged in.
-   * @var bool
-   */
-  private static $enable_api_user_creation = true;
+    // Whether or not API user creation is enabled. If set to true, the required
+    // API methods to create new API users will be opened up. There are also a
+    // handful of API methods that are always available to provide things like
+    // statistics for API users. These can only be called when that API user is
+    // logged in.
+    'enable_api_user_creation' => true,
 
-  /**
-   * If set to true, allow API users to specify one or more IP addresses that
-   * their API key can be used from. This setting doesn't actually matter that
-   * much since there are no limitations (rate limiting or quotas) on API
-   * usage by API key; it's all done by IP address. Regardless, this feature
-   * is available if the user wants to ensure that nobody else is using their
-   * key.
-   *
-   * Enabling this feature requires an additional database query per request.
-   * @var bool
-   */
-  private static $enable_api_user_ip_filtering = false;
-
-  /**
-   * The limit to the number of requests that can be batched together. For no
-   * limit, set to null...although that's not recommended as someone could
-   * malaciously send a lot of requests. While rate limiting is technically
-   * done per call, it's possible to break that limit in a single http request
-   * by batching calls together since a single batched API call is guaranteed
-   * not to fail in the middle due to rate limits. Making this unlimited isn't
-   * a great idea because someone could do a one-time gigantic batch request
-   * and bog down the API.
-   * @var int
-   */
-  private static $batch_limit = 10;
-
-  /**
-   * API methods are all private by default. Add them here to expose them. To
-   * require a valid session (user logged in), use the 'session' key. Methods
-   * added to the 'non_session' key can be called without being logged in.
-   * @var array
-   */
-  private static $custom_map = array(
-    'session' => array(
-      'test_crud' => array(
-        'read' => array('where_clause', 'columns')
-      )
-    ),
-    'non_session' => array(
-      'test_user' => array(
-        'log_in' => array('username', 'password', 'remember_me')
+    // If set to true, allow API users to specify one or more IP addresses that
+    // their API key can be used from. This setting doesn't actually matter that
+    // much since there are no limitations (rate limiting or quotas) on API
+    // usage by API key; it's all done by IP address. Regardless, this feature
+    // is available if the user wants to ensure that nobody else is using their
+    // key.
+    //
+    // Enabling this feature requires an additional database query per request.
+    'enable_api_user_ip_filtering' => false,
+   
+    // API methods are all private by default. Add them here to expose them. To
+    // require a valid session when making an API call (user logged in), put
+    // your call in the 'session' key. Methods added to the 'non_session' key
+    // can be called without being logged in.
+    'custom_map' => array(
+      'session' => array(
+        'test_crud' => array(
+          'read' => array('where_clause', 'columns')
+        )
+      ),
+      'non_session' => array(
+        'test_user' => array(
+          'log_in' => array('username', 'password', 'remember_me')
+        )
       )
     )
   );
 
-  /* END SETTINGS */
+  //
+  //
+  //-----------------------------------------
+  //             End Settings
+  // Do not modify anything past this point
+  // ----------------------------------------
+  // 
+  // 
 
   /**
    * The timestamp when processing of the API request started.
@@ -182,13 +151,15 @@ final class cora {
   private $start_timestamp;
 
   /**
-   * TODO
+   * The original request passed to this object, usually $_REQUEST. Stored
+   * right away so logging and error functions have access to it.
    * @var array
    */
   private $request;
 
   /**
-   * TODO
+   * A list of all of the API calls extracted from the request. This is stored
+   * so that logging and error functions have access to it.
    * @var array
    */
   private $api_calls;
@@ -199,6 +170,13 @@ final class cora {
    * @var array
    */
   private $response_data = array();
+
+  /**
+   * The actual response in array form. It is stored here so the shutdown
+   * handler has access to it.
+   * @var array
+   */
+  private $response;
 
   /**
    * This is necessary because of the shutdown handler. According to the PHP
@@ -230,11 +208,37 @@ final class cora {
    */
   private static $error_extra_info = null;
 
-  // TODO
+  /**
+   * A list of the response times for each API call. This does not reflect the
+   * response time for the entire request, nor does it include the time it
+   * took for overhead like rate limit checking.
+   * @var array
+   */
   private $response_times = array();
+
+  /**
+   * A list of the query counts for each API call. This does not reflect the
+   * query count for the entire request, nor does it include the queries for
+   * overhead like rate limit checking.
+   * @var array
+   */
   private $response_query_counts = array();
+
+  /**
+   * A list of the query times for each API call. This does not reflect the
+   * query time for the entire request, nor does it include the times for
+   * overhead like rate limit checking.
+   * @var array
+   */  
   private $response_query_times = array();
-  private $current_api_call = null; // the API call that is currently executing (for logging errors)
+
+  /**
+   * This stores the currently executing API call. If that API call were to
+   * fail, I need to know which one I was running in order to propery log the
+   * error.
+   * @var array
+   */
+  private $current_api_call = null;
 
   /**
    * Database object.
@@ -277,12 +281,6 @@ final class cora {
     $this->start_timestamp = microtime(true);
     $this->database = database::get_instance();
 
-    // todo: I can get rid of my track/do not track logic by putting this right before and after each api call:
-    // database->reset_statistics(); or database->track_statistics()
-    // api_call
-    // database->get_statistics();
-    $this->database->reset_statistics();
-
     // See class variable documentation for reasoning.
     $this->current_working_directory = getcwd();
   }
@@ -302,7 +300,6 @@ final class cora {
    * @return null
    */
   public function process_request($request) {
-    // die();
     // This is necessary in order for the shutdown handler/log function to have
     // access to this data, but it's not used anywhere else.
     $this->request = $request;
@@ -314,8 +311,6 @@ final class cora {
     if(self::get_setting('force_ssl') === true && empty($_SERVER['HTTPS'])) {
       throw new \Exception('Request must be sent over HTTPS.', 1006);
     }
-
-    // throw new \Exception('blah.', 9999);
 
     // Build a list of API calls. For a single request, it's just the request.
     // For batch requests, add each item in the batch parameter to this array.
@@ -350,9 +345,7 @@ final class cora {
       $request_map = $this->get_request_map($api_call);
       $request_type = $this->get_request_type($api_call, $request_map);
 
-      // Throw exceptions if data was missing or incorrect. TODO: API key is not
-      // set in each individual request...that's on the parent. Need to adjust
-      // for this and make sure it works in all cases.
+      // Throw exceptions if data was missing or incorrect.
       $this->check_api_call_for_errors($api_call, $request_map, $request_type);
 
       // If the resource doesn't exist, spl_autoload_register() will throw a fatal
@@ -366,9 +359,10 @@ final class cora {
       }
 
       if($request_map === 'custom') {
+        $custom_map = self::get_setting('custom_map');
         $arguments = $this->get_arguments(
           $api_call,
-          self::$custom_map[$request_type][$api_call['resource']][$api_call['method']]
+          $custom_map[$request_type][$api_call['resource']][$api_call['method']]
         );
       }
       else if($request_map === 'cora') {
@@ -456,8 +450,9 @@ final class cora {
    * @return string The map.
    */
   private function get_request_map($request) {
-    if(isset(self::$custom_map['session'][$request['resource']])
-    || isset(self::$custom_map['non_session'][$request['resource']])) {
+    $custom_map = self::get_setting('custom_map');
+    if(isset($custom_map['session'][$request['resource']])
+    || isset($custom_map['non_session'][$request['resource']])) {
       return 'custom';
     }
     else if(isset($this->cora_map['session'][$request['resource']])
@@ -481,7 +476,7 @@ final class cora {
       $map = $this->cora_map;
     }
     else if($request_map === 'custom') {
-      $map = self::$custom_map;
+      $map = self::get_setting('custom_map');
     }
 
     if(isset($map['session'][$request['resource']][$request['method']])) {
@@ -503,7 +498,8 @@ final class cora {
    * @return bool If this request puts us over the rate threshold.
    */
   private function is_over_rate_limit() {
-    if(self::$requests_per_minute === null) {
+    $requests_per_minute = self::get_setting('requests_per_minute');
+    if($requests_per_minute === null) {
       return false;
     }
     $api_log_resource = new api_log();
@@ -511,7 +507,7 @@ final class cora {
       $_SERVER['REMOTE_ADDR'],
       time() - 60
     );
-    return ($requests_this_minute >= self::$requests_per_minute);
+    return ($requests_this_minute >= $requests_per_minute);
   }
 
   /**
@@ -580,7 +576,7 @@ final class cora {
    * @return mixed The setting
    */
   public static function get_setting($setting) {
-    return self::$$setting;
+    return self::$settings[$setting];
   }
 
   /**
@@ -709,7 +705,7 @@ final class cora {
       }
 
       // If debugging, add the original request to the repsonse
-      if(self::$debug === true) {
+      if(self::get_setting('debug') === true) {
         $this->response['request'] = $this->request;
       }
 

@@ -86,17 +86,6 @@ final class database extends \mysqli {
   }
 
   /**
-   * Reset the query count and query time. This is used when doing batch API
-   * calls so that subsequent calls in the sequence have proper data in the log.
-   *
-   * @return null
-   */
-  public function reset_statistics() {
-    self::$query_count = 0;
-    self::$query_time = 0;
-  }
-
-  /**
    * A transaction is started every time an API call is made and thus this class
    * is initalized.
    *
