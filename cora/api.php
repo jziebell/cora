@@ -29,6 +29,12 @@ abstract class api {
   protected $session;
 
   /**
+   * Cora object.
+   * @var session
+   */
+  protected $cora;
+
+  /**
    * Construct and set the variables. The namespace is stripped from the
    * resource variable. Anything that extends crud, dictionary, or API will use
    * this constructor. This means that there should be no arguments or every
@@ -40,6 +46,7 @@ abstract class api {
     $class_parts = explode('\\', get_class($this));
     $this->resource = end($class_parts);
     $this->database = database::get_instance();
+    $this->cora = cora::get_instance();
 
     // Set the proper session variable. This is weird but necessary since Cora
     // supports the ability to log in to manage your API key as well as the

@@ -24,7 +24,7 @@ namespace cora;
  */
 final class cora {
 
-  private static $settings = array(
+  private $settings = array(
      // Whether or not debugging is enabled. Debugging will produce additional
      // output in the API response, including data->error_file,
      // data->error_line, data->error_trace, data->error_extra_info, and the
@@ -57,9 +57,10 @@ final class cora {
     // at "myapp.myhomepage.com", then this value should be
     // "myapp.myhomepage.com". You can set this value to null and it will work,
     // but sessions will not persist if a user switches from "www.myapp.com" to
-    // "myapp.com". TODO: Figure out why setting this to null works and if it's
-    // recommended.
-   
+    // "myapp.com". You can set this value to null and it will work, but
+    // sessions will not persist if a user switches from www.myapp.com to
+    // myapp.com.
+    // 
     // From http://php.net/manual/en/function.setcookie.php The domain that the
     // cookie is available to. Setting the domain to "www.example.com" will make
     // the cookie available in the www subdomain and higher subdomains. Cookies
@@ -123,11 +124,11 @@ final class cora {
     // can be called without being logged in.
     'custom_map' => array(
       'session' => array(
-        'test_crud' => array(
-          'read' => array('where_clause', 'columns')
-        )
       ),
       'non_session' => array(
+        'test_crud' => array(
+          'read' => array('where_clause', 'columns')
+        ),
         'test_user' => array(
           'log_in' => array('username', 'password', 'remember_me')
         )
@@ -143,6 +144,11 @@ final class cora {
   // ----------------------------------------
   // 
   // 
+
+  /**
+   * The singleton.
+   */
+  private static $instance;
 
   /**
    * The timestamp when processing of the API request started.
@@ -194,19 +200,6 @@ final class cora {
    * @var string
    */
   private $current_working_directory;
-
-  /**
-   * Extra information for errors. For example, the database class puts
-   * additional information into this variable if the query fails. The
-   * error_message remains the same but has this additional data to help the
-   * developer (if debug is enabled).
-   *
-   * I'm not 100% sure static is the most intuitive way to use this. I'd prefer
-   * it not be static but then any class that wants to set this extra info has
-   * to have the cora object passed to it or else cora needs to be a singleton.
-   * @var mixed
-   */
-  private static $error_extra_info = null;
 
   /**
    * A list of the response times for each API call. This does not reflect the
@@ -269,37 +262,69 @@ final class cora {
   );
 
   /**
+   * The headers to output in the shutdown handler.
+   * @var array
+   */
+  private $headers = array('Content-type' => 'application/json; charset=UTF-8');
+
+  /**
+   * Extra information for errors. For example, the database class puts
+   * additional information into this variable if the query fails. The
+   * error_message remains the same but has this additional data to help the
+   * developer (if debug is enabled).
+   *
+   * @var mixed
+   */
+  private $error_extra_info = null;
+
+  /**
    * Save the request variables for use later on. If unset, they are defaulted
    * to null. Any of these values being null will throw an exception as soon as
    * you try to process the request. The reason that doesn't happen here is so
    * that I can store exactly what was sent to me for logging purposes.
-   *
-   * @param array $request Really just the $_REQUEST array in a normal
-   *     situation. Required keys are: api_key, resource, method, arguments.
    */
-  public function __construct() {
+  private function __construct() {
     $this->start_timestamp = microtime(true);
-    $this->database = database::get_instance();
 
     // See class variable documentation for reasoning.
     $this->current_working_directory = getcwd();
   }
 
   /**
+   * Use this function to instantiate this class instead of calling new cora()
+   * (which isn't allowed anyways). This is necessary so that the API class
+   * can have access to Cora.
+   * 
+   * @return cora A new cora object or the already created one.
+   */
+  public static function get_instance() {
+    if(!isset(self::$instance)) {
+      self::$instance = new self();
+    }
+    return self::$instance;
+  }  
+
+  /**
    * Execute the request. It is run through the rate limiter, checked for
    * errors, then processed. Requests sent after the rate limit is reached are
    * not logged.
-   *
+   * 
    * @param array $request Basically just $_REQUEST or a slight mashup of it
    * for batch requests.
    * @throws \Exception If the rate limit threshhold is reached.
    * @throws \Exception If SSL is required but not used.
    * @throws \Exception If the requested method does not exist.
-   * @throws \Exception If this is a batch request and the batch data is not valid JSON
-   * @throws \Exception If this is a batch request and it exceeds the maximum number of api calls allowed in one batch.
+   * @throws \Exception If this is a batch request and the batch data is not
+   * valid JSON
+   * @throws \Exception If this is a batch request and it exceeds the maximum
+   * number of api calls allowed in one batch.
    * @return null
    */
   public function process_request($request) {
+    // Used to have this in the constructor, but the database uses this class
+    // which causes a dependency loop in the constructors.
+    $this->database = database::get_instance();
+
     // This is necessary in order for the shutdown handler/log function to have
     // access to this data, but it's not used anywhere else.
     $this->request = $request;
@@ -308,7 +333,7 @@ final class cora {
     if($this->is_over_rate_limit() === true) {
       throw new \Exception('Rate limit reached.', 1005);
     }
-    if(self::get_setting('force_ssl') === true && empty($_SERVER['HTTPS'])) {
+    if($this->get_setting('force_ssl') === true && empty($_SERVER['HTTPS'])) {
       throw new \Exception('Request must be sent over HTTPS.', 1006);
     }
 
@@ -320,8 +345,8 @@ final class cora {
       if($batch === false) {
         throw new \Exception('Batch is not valid JSON.', 1012);
       }
-      $batch_limit = self::get_setting('batch_limit');
-      if(count($batch) > $batch_limit) {
+      $batch_limit = $this->get_setting('batch_limit');
+      if($batch_limit !== null && count($batch) > $batch_limit) {
         throw new \Exception('Batch limit exceeded.', 1013);
       }
       foreach($batch as $api_call) {
@@ -341,16 +366,25 @@ final class cora {
       // Store the currently running API call for tracking if an error occurs.
       $this->current_api_call = $api_call;
 
-      // Sets $request_type to 'public' or 'private'
-      $request_map = $this->get_request_map($api_call);
-      $request_type = $this->get_request_type($api_call, $request_map);
+      // These are required before we can move on with any more processing or
+      // error checking.
+      if(isset($api_call['resource']) === false) {
+        throw new \Exception('Resource is required.', 1001);
+      }
+      if(isset($api_call['method']) === false) {
+        throw new \Exception('Method is required.', 1002);
+      }
+
+      // Sets $call_type to 'public' or 'private'
+      $call_map = $this->get_call_map($api_call);
+      $call_type = $this->get_call_type($api_call, $call_map);
 
       // Throw exceptions if data was missing or incorrect.
-      $this->check_api_call_for_errors($api_call, $request_map, $request_type);
+      $this->check_api_call_for_errors($api_call, $call_map, $call_type);
 
-      // If the resource doesn't exist, spl_autoload_register() will throw a fatal
-      // error. The shutdown handler will "catch" it. It is not possible to catch
-      // exceptions directly from the autoloader using try/catch.
+      // If the resource doesn't exist, spl_autoload_register() will throw a
+      // fatal error. The shutdown handler will "catch" it. It is not possible
+      // to catch exceptions directly from the autoloader using try/catch.
       $resource_instance = new $api_call['resource']();
 
       // If the method doesn't exist
@@ -358,17 +392,17 @@ final class cora {
         throw new \Exception('Method does not exist.', 1009);
       }
 
-      if($request_map === 'custom') {
-        $custom_map = self::get_setting('custom_map');
+      if($call_map === 'custom') {
+        $custom_map = $this->get_setting('custom_map');
         $arguments = $this->get_arguments(
           $api_call,
-          $custom_map[$request_type][$api_call['resource']][$api_call['method']]
+          $custom_map[$call_type][$api_call['resource']][$api_call['method']]
         );
       }
-      else if($request_map === 'cora') {
+      else if($call_map === 'cora') {
         $arguments = $this->get_arguments(
           $api_call,
-          $this->cora_map[$request_type][$api_call['resource']][$api_call['method']]
+          $this->cora_map[$call_type][$api_call['resource']][$api_call['method']]
         );
       }
 
@@ -395,27 +429,21 @@ final class cora {
    * @throws \Exception If a private method was called without a valid session.
    * @return null
    */
-  private function check_api_call_for_errors($request, $request_map, $request_type) {
-    if($request['api_key'] === null) {
+  private function check_api_call_for_errors($call, $call_map, $call_type) {
+    if($call['api_key'] === null) {
       throw new \Exception('API Key is required.', 1000);
-    }
-    if($request['resource'] === null) {
-      throw new \Exception('Resource is required.', 1001);
-    }
-    if($request['method'] === null) {
-      throw new \Exception('Method is required.', 1002);
     }
 
     // Make sure the API key that was sent is valid.
     $api_user_resource = new api_user();
-    if($api_user_resource->is_valid_api_key($request['api_key']) === false) {
+    if($api_user_resource->is_valid_api_key($call['api_key']) === false) {
       throw new \Exception('Invalid API key.', 1003);
     }
 
     // Get the appropriate session object. This has to be done always because
     // the session must be available even for non-session requests in the case
     // of something like logging in.
-    switch($request_map) {
+    switch($call_map) {
       case 'custom':
         $session = api_session::get_instance();
       break;
@@ -425,14 +453,14 @@ final class cora {
     }
 
     // If the request requires a session, make sure it's valid.
-    if($request_type === 'session') {
-      if($request_map === 'custom') {
+    if($call_type === 'session') {
+      if($call_map === 'custom') {
         $session_is_valid = $session->touch();
         if($session_is_valid === false) {
           throw new \Exception('API session is expired.', 1004);
         }
       }
-      else if($request_map === 'cora') {
+      else if($call_map === 'cora') {
         $session_is_valid = $session->touch();
         if($session_is_valid === false) {
           throw new \Exception('API user session is expired.', 1010);
@@ -449,8 +477,8 @@ final class cora {
    * @throws \Exception If the resource was not found in either map.
    * @return string The map.
    */
-  private function get_request_map($request) {
-    $custom_map = self::get_setting('custom_map');
+  private function get_call_map($request) {
+    $custom_map = $this->get_setting('custom_map');
     if(isset($custom_map['session'][$request['resource']])
     || isset($custom_map['non_session'][$request['resource']])) {
       return 'custom';
@@ -471,12 +499,12 @@ final class cora {
    * @throws \Exception If the method was not found in the map.
    * @return string The type.
    */
-  private function get_request_type($request, $request_map) {
-    if($request_map === 'cora') {
+  private function get_call_type($request, $call_map) {
+    if($call_map === 'cora') {
       $map = $this->cora_map;
     }
-    else if($request_map === 'custom') {
-      $map = self::get_setting('custom_map');
+    else if($call_map === 'custom') {
+      $map = $this->get_setting('custom_map');
     }
 
     if(isset($map['session'][$request['resource']][$request['method']])) {
@@ -498,7 +526,7 @@ final class cora {
    * @return bool If this request puts us over the rate threshold.
    */
   private function is_over_rate_limit() {
-    $requests_per_minute = self::get_setting('requests_per_minute');
+    $requests_per_minute = $this->get_setting('requests_per_minute');
     if($requests_per_minute === null) {
       return false;
     }
@@ -556,8 +584,8 @@ final class cora {
    *
    * @return null
    */
-  public static function set_error_extra_info($error_extra_info) {
-    self::$error_extra_info = $error_extra_info;
+  public function set_error_extra_info($error_extra_info) {
+    $this->error_extra_info = $error_extra_info;
   }
 
   /**
@@ -565,18 +593,34 @@ final class cora {
    *
    * @return mixed
    */
-  public static function get_error_extra_info() {
+  public function get_error_extra_info() {
     return $this->error_extra_info;
   }
 
   /**
-   * Get a setting. All of the settings are private static.
+   * Get a setting.
    *
    * @param string $setting The setting name
    * @return mixed The setting
    */
-  public static function get_setting($setting) {
-    return self::$settings[$setting];
+  public function get_setting($setting) {
+    return $this->settings[$setting];
+  }
+
+  /**
+   * Sets the headers that should be used for this API call. This is useful
+   * for doing things like returning files from the API where the content-type
+   * is no longer application/json; charset=UTF-8. This replaces all headers;
+   * headers are not outputted to the browser until all API calls have
+   * completed, so the last call to this function will win.
+   * 
+   * @param array $headers The headers you want to set.
+   */
+  public function set_headers($headers) {
+    $this->headers = $headers;
+    if(isset($this->request['batch']) === true && $this->content_type_is_json() === false) {
+      throw new \Exception('Batch API calls must return JSON.', 1014);
+    }
   }
 
   /**
@@ -633,7 +677,7 @@ final class cora {
   public function set_error_response($error_message, $error_code, $error_file, $error_line, $error_trace) {
     // $this->response_error_code = $error_code;
 
-    if(self::get_setting('debug') === true) {
+    if($this->get_setting('debug') === true) {
       $this->response = array(
         'success' => false,
         'data' => array(
@@ -642,7 +686,7 @@ final class cora {
           'error_file' => $error_file,
           'error_line' => $error_line,
           'error_trace' => $error_trace,
-          'error_extra_info' => self::$error_extra_info
+          'error_extra_info' => $this->error_extra_info
         ),
         'request' => $this->request
       );
@@ -665,66 +709,147 @@ final class cora {
    * error wasn't caught by my error/exception handlers. The default PHP error
    * handler fills this in. Doesn't do anything if an exception was thrown due
    * to the rate limit.
-   *
+   * 
+   * @throws \Exception If a this was a batch request but one of the api calls
+   * changed the content-type to anything but the default.
    * @return null
    */
   public function shutdown_handler() {
-    // Fix the current working directory. See documentation on this class
-    // variable for details.
-    chdir($this->current_working_directory);
-    // If I didn't catch an error/exception with my handlers, look here...this
-    // will catch fatal errors that I can't.
-    $error = error_get_last();
-    if($error !== null) {
-      $this->set_error_response(
-        $error['message'],
-        $error['type'],
-        $error['file'],
-        $error['line'],
-        debug_backtrace(false)
-      );
-    }
+    // Since the shutdown handler is rather verbose in what it has to check for
+    // and do, it's possible it will fail or detect an error that needs to be
+    // handled. For example, someone could return binary data from an API call
+    // which will fail a json_encode, or someone could change the headers in a
+    // batch API call, which isn't allowed. I can't throw an exception since I'm
+    // already in the shutdown handler...it will be caught but it won't execute
+    // a new shutdown handler and no output will be sent to the client. I just
+    // have to handle all problems manually.
+    try {
+      // Fix the current working directory. See documentation on this class
+      // variable for details.
+      chdir($this->current_working_directory);
 
-    // If the response has already been set by one of the error handlers, end
-    // here.
-    if(isset($this->response) === true) {
-      // Don't log anything for rate limit breaches.
-      if($this->response['data']['error_code'] !== 1005) {
-        $this->log();
+      // If I didn't catch an error/exception with my handlers, look here...this
+      // will catch fatal errors that I can't.
+      $error = error_get_last();
+      if($error !== null) {
+        $this->set_error_response(
+          $error['message'],
+          $error['type'],
+          $error['file'],
+          $error['line'],
+          debug_backtrace(false)
+        );
       }
-      die(json_encode($this->response));
-    }
-    else {
-      $this->response = array('success' => true);
 
-      if(isset($this->request['batch']) === true) {
-        $this->response['data'] = $this->response_data;
+      // If the response has already been set by one of the error handlers, end
+      // execution here and just log & output the response.
+      if(isset($this->response) === true) {
+        // Don't log anything for rate limit breaches.
+        if($this->response['data']['error_code'] !== 1005) {
+          $this->log();
+        }
+
+        // Override whatever headers might have already been set.
+        $this->reset_headers();
+        $this->output_headers();
+        die(json_encode($this->response));
       }
       else {
-        $this->response['data'] = $this->response_data[0];
+        // If we got here, no errors have occurred.
+        
+        // For JSON data, build the response, log it, and output it. Simple. 
+        if($this->content_type_is_json() === true) {
+          $this->response = array('success' => true);
+
+          if(isset($this->request['batch']) === true) {
+            $this->response['data'] = $this->response_data;
+          }
+          else {
+            $this->response['data'] = $this->response_data[0];
+          }
+
+          // If debugging, add the original request to the repsonse
+          if($this->get_setting('debug') === true) {
+            $this->response['request'] = $this->request;
+          }
+
+          // Log all of the API calls that were made.
+          $this->log();
+
+          // Output the response
+          $this->output_headers();
+          die(json_encode($this->response));
+        }
+        else { // For non-JSON data...
+          // Only single call requests are allowed to be non-JSON. You can't
+          // even get to this point for batch requests because as soon as you
+          // try to manipulate the headers cora will throw an exception.
+          if(isset($this->request['batch']) === false) {
+            $this->response = $this->response_data[0];
+            $this->log();
+
+            $this->output_headers();
+            die($this->response);
+          }
+        }
       }
-
-      // If debugging, add the original request to the repsonse
-      if(self::get_setting('debug') === true) {
-        $this->response['request'] = $this->request;
-      }
-
-      // Log all of the API calls that were made.
-      $this->log();
-
-      // Output the response
+    }
+    catch(\Exception $e) { // See comment on the try{}
+      $this->set_error_response(
+        $e->getMessage(),
+        $e->getCode(),
+        $e->getFile(),
+        $e->getLine(),
+        $e->getTrace()
+      );
+      $this->reset_headers();
+      $this->output_headers();
       die(json_encode($this->response));
     }
   }
 
   /**
+   * Output whatever the headers are currently set to.
+   * 
+   * @return null
+   */
+  private function output_headers() {
+    foreach($this->headers as $key => $value) {
+      header($key . ': ' . $value);
+    }
+  }
+
+  /**
+   * Resets the headers to default. Have to do this in case one of the API
+   * calls changes them and there was an error to handle.
+   * 
+   * @return null
+   */
+  private function reset_headers() {
+    $this->headers = array('Content-type' => 'application/json; charset=UTF-8');
+  }
+
+  /**
+   * Return whether or not the output headers indicate that the content type
+   * is JSON. Basically, whether or not the default headers were overridden.
+   * 
+   * @return bool Whether or not the output has a content type of
+   * application/json; charset=UTF-8
+   */
+  private function content_type_is_json() {
+    return    isset($this->headers['Content-type']) === true
+           && $this->headers['Content-type'] === 'application/json; charset=UTF-8';
+  }
+
+  /**
    * Log the request and response to the database. The logged response is
-   * truncated to 128kb for sanity.
+   * truncated to 16kb for sanity.
    *
    * @return null
    */
   private function log() {
     $api_log_resource = new api_log();
+
     // If exception. This is lenghty because I have to check to make sure
     // everything was set or else use null.
     if(isset($this->response['data']['error_code'])) {
@@ -753,7 +878,7 @@ final class cora {
       $response_time = null;
       $response_query_count = null;
       $response_query_time = null;
-      $response_data = substr(json_encode($this->response['data']), 0, 131072);
+      $response_data = substr(json_encode($this->response['data']), 0, 16384);
 
       $api_log_resource->create(array(
         'request_api_key'       =>  $request_api_key,
@@ -771,18 +896,26 @@ final class cora {
       $response_error_code = null;
       for($i = 0; $i < count($this->api_calls); $i++) {
         $api_call = $this->api_calls[$i];
-        $response = $this->response['data'][$i];
-
-        $response_time = $this->response_times[$i];
-        $response_query_count = $this->response_query_counts[$i];
-        $response_query_time = $this->response_query_times[$i];
 
         $request_api_key = $api_call['api_key'];
         $request_resource = $api_call['resource'];
         $request_method = $api_call['method'];
         $request_arguments = isset($api_call['arguments']) ? $api_call['arguments'] : null;
 
-        $response_data = substr(json_encode($response), 0, 131072);
+        $response_time = $this->response_times[$i];
+        $response_query_count = $this->response_query_counts[$i];
+        $response_query_time = $this->response_query_times[$i];
+
+        // Don't log the response data if the output isn't JSON. Typical use
+        // case for that is using the API to get a file and there's no point to
+        // logging that in the DB.
+        if($this->content_type_is_json() === true) {
+          $response_data = substr(json_encode($this->response_data[$i]), 0, 16384);
+        }
+        else {
+          $response_data = null;
+        }
+
         $api_log_resource->create(array(
           'request_api_key'       =>  $request_api_key,
           'request_resource'      =>  $request_resource,
@@ -796,7 +929,6 @@ final class cora {
         ));    
       }
     }
-
   }
 
 }

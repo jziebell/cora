@@ -112,9 +112,9 @@ abstract class session {
    */
   private static function set_cookie($name, $value, $expire) {
     $path = ''; // The current directory that the cookie is being set in.
-    $secure = cora::get_setting('force_ssl');
+    $secure = $this->cora->get_setting('force_ssl');
     $httponly = true; // Only allow access to the cookie from the server.
-    $domain = cora::get_setting('cookie_domain');
+    $domain = $this->cora->get_setting('cookie_domain');
     if($domain === null) { // See setting documentation for more info.
       $domain = '';
     }

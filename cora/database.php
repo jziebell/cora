@@ -25,24 +25,34 @@ final class database extends \mysqli {
 
   /**
    * The singleton.
+   * @var database
    */
   private static $instance;
 
   /**
    * Whether or not a transaction has been started. Used to make sure only one
    * is started at a time and it gets closed only if it's open.
+   * @var bool
    */
-  private static $transaction_started = false;
+  private $transaction_started = false;
 
   /**
    * The total number of queries executed.
+   * @var int
    */
-  private static $query_count = 0;
+  private $query_count = 0;
 
   /**
    * The total time all queries have taken to execute.
+   * @var float;
    */
-  private static $query_time = 0;
+  private $query_time = 0;
+
+  /**
+   * The cora object.
+   * @var cora
+   */
+  private $cora;
 
   /**
    * Create the mysql object used for the current API call and start a
@@ -56,17 +66,22 @@ final class database extends \mysqli {
    * @throws \Exception If failing to connect to the database.
    */
   private function __construct() {
+    $this->cora = cora::get_instance();
+
     parent::__construct(
-      cora::get_setting('database_host'),
-      cora::get_setting('database_username'),
-      cora::get_setting('database_password')
+      $this->cora->get_setting('database_host'),
+      $this->cora->get_setting('database_username'),
+      $this->cora->get_setting('database_password')
     );
 
     if($this->connect_error !== null) {
+      $this->cora->set_error_extra_info(array(
+        'database_error' => $this->connect_error
+      ));
       throw new \Exception('Could not connect to database.', 1200);
     }
 
-    $database_name = cora::get_setting('database_name');
+    $database_name = $this->cora->get_setting('database_name');
     if($database_name !== null) {
       $this->select_db($database_name);
     }
@@ -80,10 +95,26 @@ final class database extends \mysqli {
    * @return null
    */
   public function __destruct() {
-    if(self::$transaction_started === true) {
+    if($this->transaction_started === true) {
       $this->commit_transaction();
     }
   }
+
+  /**
+   * Use this function to instantiate this class instead of calling new
+   * database() (which isn't allowed anyways). This avoids confusion from trying
+   * to use dependency injection by passing an instance of this class around
+   * everywhere. It also keeps a single connection open to the database for the
+   * current API call.
+   *
+   * @return database A new database object or the already created one.
+   */
+  public static function get_instance() {
+    if(!isset(self::$instance)) {
+      self::$instance = new self();
+    }
+    return self::$instance;
+  }  
 
   /**
    * A transaction is started every time an API call is made and thus this class
@@ -93,12 +124,12 @@ final class database extends \mysqli {
    * @return null
    */
   private function start_transaction() {
-    if(self::$transaction_started === false) {
+    if($this->transaction_started === false) {
       $result = $this->query('start transaction');
       if($result === false) {
         throw new \Exception('Failed to start database transaction.', 1201);
       }
-      self::$transaction_started = true;
+      $this->transaction_started = true;
     }
   }
 
@@ -110,8 +141,8 @@ final class database extends \mysqli {
    * @return null
    */
   private function commit_transaction() {
-    if(self::$transaction_started === true) {
-      self::$transaction_started = false;
+    if($this->transaction_started === true) {
+      $this->transaction_started = false;
       $result = $this->query('commit');
       if($result === false) {
         throw new \Exception('Failed to commit database transaction.', 1202);
@@ -126,8 +157,8 @@ final class database extends \mysqli {
    * @return null
    */
   private function rollback_transaction() {
-    if(self::$transaction_started === true) {
-      self::$transaction_started = false;
+    if($this->transaction_started === true) {
+      $this->transaction_started = false;
       $result = $this->query('rollback');
       if($result === false) {
         throw new \Exception('Failed to rollback database transaction.', 1203);
@@ -231,22 +262,6 @@ final class database extends \mysqli {
   }
 
   /**
-   * Use this function to instantiate this class instead of calling new
-   * database() (which isn't allowed anyways). This avoids confusion from trying
-   * to use dependency injection by passing an instance of this class around
-   * everywhere. It also keeps a single connection open to the database for the
-   * current API call.
-   *
-   * @return database A new database object or the already created one.
-   */
-  public static function get_instance() {
-    if(!isset(self::$instance)) {
-      self::$instance = new self();
-    }
-    return self::$instance;
-  }
-
-  /**
    * Performs a query on the database. This function is available publicly for
    * the case when the standard select, insert, and update don't quite cut it.
    *
@@ -281,7 +296,7 @@ final class database extends \mysqli {
       $database_error = $this->error;
       $this->rollback_transaction();
 
-      cora::set_error_extra_info(array(
+      $this->cora->set_error_extra_info(array(
         'database_error' => $database_error,
         'query' => $query
       ));
@@ -295,8 +310,8 @@ final class database extends \mysqli {
     }
 
     // Don't log info about transactions...they're a wash
-    self::$query_count++;
-    self::$query_time += ($stop - $start);
+    $this->query_count++;
+    $this->query_time += ($stop - $start);
 
     return $result;
   }
@@ -507,7 +522,7 @@ final class database extends \mysqli {
    * @return int The query count.
    */
   public function get_query_count() {
-    return self::$query_count;
+    return $this->query_count;
   }
 
   /**
@@ -516,7 +531,7 @@ final class database extends \mysqli {
    * @return float The total execution time.
    */
   public function get_query_time() {
-    return self::$query_time;
+    return $this->query_time;
   }
 
 }
