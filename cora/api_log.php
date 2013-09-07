@@ -27,13 +27,9 @@ class api_log extends crud {
 	 * Get the number of requests since a given timestamp for a given IP
 	 * address. Handy for rate limiting.
 	 *
-	 * Important: Do not expose this function publicly and use it there. It is
-	 * excluded from log statistics because it is used only for rate limiting.
-	 * Exposing this would cause any API calls to it to have inaccurate query
-	 * log data.
-	 *
 	 * @param string $request_ip The IP to look at.
 	 * @param int $timestamp The timestamp to check from.
+	 *
 	 * @return int The number of requests on or after $timestamp.
 	 */
 	public function get_number_requests_since($request_ip, $timestamp) {

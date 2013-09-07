@@ -7,36 +7,29 @@ namespace cora;
  *
  * @author  Jon Ziebell
  */
-abstract class bcrypt {
+final class bcrypt {
 
   /**
-   * From php.net/crypt: The two digit cost parameter is the base-2 logarithm of
-   * the iteration count for the underlying Blowfish-based hashing algorithmeter
-   * and must be in range 04-31. Start going much higher and it will start
-   * taking a really long time to hash passwords.
-   *
-   * You *can* change this value in a production environment, but it will only
-   * affect newly generated hashes. Old hashes will use the original cost value
-   * as it's stored in the salt. Values less than 12 are not recommended.
-   *
-   * Decrease this value if your logins are taking too long.
-   *
-   * @var string
-   */
-  private static $cost = '14';
-
-  /**
-   * Calls the PHP crypt function to generate a hash of a given password. If no
-   * salt is provided (creating a new password), one is generated automatically.
+   * Calls the PHP crypt function to generate a hash of a given password. If
+   * no salt is provided one is generated automatically. If you're creating a
+   * hash for a new password you shouldn't provide a salt unless you have some
+   * really compelling reason to generate your own (you probably don't).
    *
    * @param string $password The plaintext password to hash.
-   * @param mixed $salt The salt to hash with. If none is provided, one is
-   *     generated automatically.
+   * @param string $salt The salt to hash with. If none is provided, one is
+   * generated automatically. In general, don't provide a salt unless you know
+   * what you're doing or the hash will fail.
+   *
+   * @throws \Exception If the provided or generated salt is invalid.
+   *
    * @return string The hashed password.
    */
-  public static function get_hash($password, $salt = null) {
+  public function get_hash($password, $salt = null) {
     if($salt === null) {
-      $salt = self::generate_salt();
+      $salt = $this->generate_salt();
+    }
+    if(preg_match('/^\$2y\$0*([4-9]|[12][0-9]|3[01])\$[A-Za-z0-9\.\/]{22}\$$/', $salt) !== 1) {
+      throw new \Exception('Invalid salt.', 1700);
     }
     return crypt($password, $salt);
   }
@@ -48,22 +41,30 @@ abstract class bcrypt {
    *
    * @param string $password The plaintext password.
    * @param string $hashed_password The hashed password you are comparing to.
-   * @return bool True if they are the same, false if not.
+   *
+   * @return boolean True if the passwords match, false if not.
    */
-  public static function compare($password, $hashed_password) {
+  public function compare($password, $hashed_password) {
     $salt = substr($hashed_password, 0, 29) . '$';
-    return self::get_hash($password, $salt) === $hashed_password;
+    return $this->get_hash($password, $salt) === $hashed_password;
   }
 
   /**
-   * Generates a salt that will indicate to PHP to use CRYPT_BLOWFISH. This
-   * might not be truly random by any means, but the salts just need to be
-   * different for each password so this is good enough.
+   * Generates a salt that will tell PHP to use CRYPT_BLOWFISH. This might not
+   * be truly random by any means, but the salts just need to be different for
+   * each password so this is good enough.
    *
-   * @return string The salt
+   * @param string $cost Basically, the higher the number, the longer the hash
+   * will take to calculate. Values less than 12 are not recommended. You
+   * *can* change this value in production even if hashes have already been
+   * generated, but it will only affect newly generated hashes. Old hashes
+   * will use the original cost value as it's stored in the salt. You will
+   * need to manually convert those if you want.
+   *
+   * @return string The salt.
    */
-  private static function generate_salt() {
-    $salt = '$2y$' . self::$cost . '$';
+  private function generate_salt($cost = '14') {
+    $salt = '$2y$' . $cost . '$';
     $set = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789./';
     $length = 22;
     $set_length = strlen($set);

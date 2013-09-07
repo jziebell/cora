@@ -60,7 +60,7 @@ final class cora {
     // "myapp.com". You can set this value to null and it will work, but
     // sessions will not persist if a user switches from www.myapp.com to
     // myapp.com.
-    // 
+    //
     // From http://php.net/manual/en/function.setcookie.php The domain that the
     // cookie is available to. Setting the domain to "www.example.com" will make
     // the cookie available in the www subdomain and higher subdomains. Cookies
@@ -117,7 +117,7 @@ final class cora {
     //
     // Enabling this feature requires an additional database query per request.
     'enable_api_user_ip_filtering' => false,
-   
+
     // API methods are all private by default. Add them here to expose them. To
     // require a valid session when making an API call (user logged in), put
     // your call in the 'session' key. Methods added to the 'non_session' key
@@ -142,8 +142,8 @@ final class cora {
   //             End Settings
   // Do not modify anything past this point
   // ----------------------------------------
-  // 
-  // 
+  //
+  //
 
   /**
    * The singleton.
@@ -222,7 +222,7 @@ final class cora {
    * query time for the entire request, nor does it include the times for
    * overhead like rate limit checking.
    * @var array
-   */  
+   */
   private $response_query_times = array();
 
   /**
@@ -279,9 +279,9 @@ final class cora {
 
   /**
    * Save the request variables for use later on. If unset, they are defaulted
-   * to null. Any of these values being null will throw an exception as soon as
-   * you try to process the request. The reason that doesn't happen here is so
-   * that I can store exactly what was sent to me for logging purposes.
+   * to null. Any of these values being null will throw an exception as soon
+   * as you try to process the request. The reason that doesn't happen here is
+   * so that I can store exactly what was sent to me for logging purposes.
    */
   private function __construct() {
     $this->start_timestamp = microtime(true);
@@ -294,23 +294,24 @@ final class cora {
    * Use this function to instantiate this class instead of calling new cora()
    * (which isn't allowed anyways). This is necessary so that the API class
    * can have access to Cora.
-   * 
+   *
    * @return cora A new cora object or the already created one.
    */
   public static function get_instance() {
-    if(!isset(self::$instance)) {
+    if(isset(self::$instance) === false) {
       self::$instance = new self();
     }
     return self::$instance;
-  }  
+  }
 
   /**
    * Execute the request. It is run through the rate limiter, checked for
    * errors, then processed. Requests sent after the rate limit is reached are
    * not logged.
-   * 
+   *
    * @param array $request Basically just $_REQUEST or a slight mashup of it
    * for batch requests.
+   *
    * @throws \Exception If the rate limit threshhold is reached.
    * @throws \Exception If SSL is required but not used.
    * @throws \Exception If the requested method does not exist.
@@ -318,6 +319,7 @@ final class cora {
    * valid JSON
    * @throws \Exception If this is a batch request and it exceeds the maximum
    * number of api calls allowed in one batch.
+   *
    * @return null
    */
   public function process_request($request) {
@@ -333,7 +335,7 @@ final class cora {
     if($this->is_over_rate_limit() === true) {
       throw new \Exception('Rate limit reached.', 1005);
     }
-    if($this->get_setting('force_ssl') === true && empty($_SERVER['HTTPS'])) {
+    if($this->get_setting('force_ssl') === true && empty($_SERVER['HTTPS']) === true) {
       throw new \Exception('Request must be sent over HTTPS.', 1006);
     }
 
@@ -351,7 +353,7 @@ final class cora {
       }
       foreach($batch as $api_call) {
         // Need to attach the API key onto each api_call
-        if(isset($request['api_key'])) {
+        if(isset($request['api_key']) === true) {
           $api_call['api_key'] = $request['api_key'];
         }
         $this->api_calls[] = $api_call;
@@ -376,8 +378,8 @@ final class cora {
       }
 
       // Sets $call_type to 'public' or 'private'
-      $call_map = $this->get_call_map($api_call);
-      $call_type = $this->get_call_type($api_call, $call_map);
+      $call_map = $this->get_api_call_map($api_call);
+      $call_type = $this->get_api_call_type($api_call, $call_map);
 
       // Throw exceptions if data was missing or incorrect.
       $this->check_api_call_for_errors($api_call, $call_map, $call_type);
@@ -411,7 +413,8 @@ final class cora {
       $start_query_count = $this->database->get_query_count();
       $start_query_time = $this->database->get_query_time();
       $this->response_data[] = call_user_func_array(
-        array($resource_instance, $api_call['method']), $arguments
+        array($resource_instance, $api_call['method']),
+        $arguments
       );
       $this->response_times[] = (microtime(true) - $start_time);
       $this->response_query_counts[] = $this->database->get_query_count() - $start_query_count;
@@ -422,11 +425,17 @@ final class cora {
   /**
    * Check to see if there were any obvious errors in the API request.
    *
+   * @param array $call The API call.
+   * @param string $call_map The map this call is part of.
+   * @param string $call_type The type this call is.
+   *
    * @throws \Exception If the API key was not specified.
    * @throws \Exception If the resource was not specified.
    * @throws \Exception If the method was not specified.
    * @throws \Exception If the specified API key was invalid.
-   * @throws \Exception If a private method was called without a valid session.
+   * @throws \Exception If a private method was called without a valid
+   * session.
+   *
    * @return null
    */
   private function check_api_call_for_errors($call, $call_map, $call_type) {
@@ -474,17 +483,20 @@ final class cora {
    * at. Custom methods will override Cora methods, although there should
    * never be any overlap in these anyways.
    *
+   * @param array $api_call The API call to map.
+   *
    * @throws \Exception If the resource was not found in either map.
+   *
    * @return string The map.
    */
-  private function get_call_map($request) {
+  private function get_api_call_map($api_call) {
     $custom_map = $this->get_setting('custom_map');
-    if(isset($custom_map['session'][$request['resource']])
-    || isset($custom_map['non_session'][$request['resource']])) {
+    if(isset($custom_map['session'][$api_call['resource']]) === true
+    || isset($custom_map['non_session'][$api_call['resource']]) === true) {
       return 'custom';
     }
-    else if(isset($this->cora_map['session'][$request['resource']])
-    || isset($this->cora_map['non_session'][$request['resource']])) {
+    else if(isset($this->cora_map['session'][$api_call['resource']]) === true
+    || isset($this->cora_map['non_session'][$api_call['resource']]) === true) {
       return 'cora';
     }
     else {
@@ -496,10 +508,14 @@ final class cora {
    * Returns 'session' or 'non_session' depending on where the API method is
    * located at. Session methods require a valid session in order to execute.
    *
+   * @param array $api_call The API call to get the type for.
+   * @param string $call_map The map this API call is a member of.
+   *
    * @throws \Exception If the method was not found in the map.
+   *
    * @return string The type.
    */
-  private function get_call_type($request, $call_map) {
+  private function get_api_call_type($api_call, $call_map) {
     if($call_map === 'cora') {
       $map = $this->cora_map;
     }
@@ -507,10 +523,10 @@ final class cora {
       $map = $this->get_setting('custom_map');
     }
 
-    if(isset($map['session'][$request['resource']][$request['method']])) {
+    if(isset($map['session'][$api_call['resource']][$api_call['method']]) === true) {
       return 'session';
     }
-    else if(isset($map['non_session'][$request['resource']][$request['method']])) {
+    else if(isset($map['non_session'][$api_call['resource']][$api_call['method']]) === true) {
       return 'non_session';
     }
     else {
@@ -520,8 +536,7 @@ final class cora {
 
   /**
    * Check to see if the request from the current IP address needs to be rate
-   * limited. If $requests_per_minute is null then there is no rate
-   * limiting.
+   * limited. If $requests_per_minute is null then there is no rate limiting.
    *
    * @return bool If this request puts us over the rate threshold.
    */
@@ -545,23 +560,26 @@ final class cora {
    * the client doesn't matter, this makes sure that the arguments are placed
    * in the correct order for calling the function.
    *
+   * @param array $api_call The
    * @param array $argument_keys The keys to get.
-   * @throws \Exception If the arguments in the request were not valid JSON.
+   *
+   * @throws \Exception If the arguments in the api_call were not valid JSON.
+   *
    * @return array The requested arguments.
    */
-  private function get_arguments($request, $argument_keys) {
+  private function get_arguments($api_call, $argument_keys) {
     $arguments = array();
 
     // All arguments are sent in the "arguments" key as JSON
-    $request_arguments = json_decode($request['arguments'], true);
+    $api_call_arguments = json_decode($api_call['arguments'], true);
 
-    if($request_arguments === false) {
+    if($api_call_arguments === false) {
       throw new \Exception('Arguments are not valid JSON.', 1011);
     }
 
     foreach($argument_keys as $argument_key) {
-      if(isset($request_arguments[$argument_key])) {
-        $arguments[] = $request_arguments[$argument_key];
+      if(isset($api_call_arguments[$argument_key]) === true) {
+        $arguments[] = $api_call_arguments[$argument_key];
       }
       else {
         // This is a bit confusing, but this is nice in that it allows for
@@ -582,6 +600,8 @@ final class cora {
   /**
    * Sets error_extra_info.
    *
+   * @param mixed $error_extra_info Whatever you want the extra info to be.
+   *
    * @return null
    */
   public function set_error_extra_info($error_extra_info) {
@@ -601,6 +621,7 @@ final class cora {
    * Get a setting.
    *
    * @param string $setting The setting name
+   *
    * @return mixed The setting
    */
   public function get_setting($setting) {
@@ -613,8 +634,10 @@ final class cora {
    * is no longer application/json; charset=UTF-8. This replaces all headers;
    * headers are not outputted to the browser until all API calls have
    * completed, so the last call to this function will win.
-   * 
+   *
    * @param array $headers The headers you want to set.
+   *
+   * @return null
    */
   public function set_headers($headers) {
     $this->headers = $headers;
@@ -631,6 +654,7 @@ final class cora {
    * @param string $error_message The error message.
    * @param string $error_file The file the error happend in.
    * @param int $error_line The line of the file the error happened on.
+   *
    * @return string The JSON response with the error details.
    */
   public function error_handler($error_code, $error_message, $error_file, $error_line) {
@@ -645,10 +669,11 @@ final class cora {
   }
 
   /**
-   * Override of the default PHP exception handler. All unhandled exceptions go
-   * here.
+   * Override of the default PHP exception handler. All unhandled exceptions
+   * go here.
    *
    * @param Exception $e The exception.
+   *
    * @return null
    */
   public function exception_handler($e) {
@@ -663,15 +688,16 @@ final class cora {
   }
 
   /**
-   * Handle all exceptions by generating a JSON response with the error details.
-   * If debugging is enabled, a bunch of other information is sent back to help
-   * out.
+   * Handle all exceptions by generating a JSON response with the error
+   * details. If debugging is enabled, a bunch of other information is sent
+   * back to help out.
    *
    * @param string $error_message The error message.
    * @param mixed $error_code The supplied error code.
    * @param string $error_file The file the error happened in.
    * @param int $error_line The line of the file the error happened on.
    * @param array $error_trace The stack trace for the error.
+   *
    * @return null
    */
   public function set_error_response($error_message, $error_code, $error_file, $error_line, $error_trace) {
@@ -709,9 +735,10 @@ final class cora {
    * error wasn't caught by my error/exception handlers. The default PHP error
    * handler fills this in. Doesn't do anything if an exception was thrown due
    * to the rate limit.
-   * 
+   *
    * @throws \Exception If a this was a batch request but one of the api calls
    * changed the content-type to anything but the default.
+   *
    * @return null
    */
   public function shutdown_handler() {
@@ -756,8 +783,8 @@ final class cora {
       }
       else {
         // If we got here, no errors have occurred.
-        
-        // For JSON data, build the response, log it, and output it. Simple. 
+
+        // For JSON data, build the response, log it, and output it. Simple.
         if($this->content_type_is_json() === true) {
           $this->response = array('success' => true);
 
@@ -810,7 +837,7 @@ final class cora {
 
   /**
    * Output whatever the headers are currently set to.
-   * 
+   *
    * @return null
    */
   private function output_headers() {
@@ -822,7 +849,7 @@ final class cora {
   /**
    * Resets the headers to default. Have to do this in case one of the API
    * calls changes them and there was an error to handle.
-   * 
+   *
    * @return null
    */
   private function reset_headers() {
@@ -832,7 +859,7 @@ final class cora {
   /**
    * Return whether or not the output headers indicate that the content type
    * is JSON. Basically, whether or not the default headers were overridden.
-   * 
+   *
    * @return bool Whether or not the output has a content type of
    * application/json; charset=UTF-8
    */
@@ -852,7 +879,7 @@ final class cora {
 
     // If exception. This is lenghty because I have to check to make sure
     // everything was set or else use null.
-    if(isset($this->response['data']['error_code'])) {
+    if(isset($this->response['data']['error_code']) === true) {
       if(isset($this->request['api_key']) === true) {
         $request_api_key = $this->request['api_key'];
       }
@@ -880,17 +907,19 @@ final class cora {
       $response_query_time = null;
       $response_data = substr(json_encode($this->response['data']), 0, 16384);
 
-      $api_log_resource->create(array(
-        'request_api_key'       =>  $request_api_key,
-        'request_resource'      =>  $request_resource,
-        'request_method'        =>  $request_method,
-        'request_arguments'     =>  $request_arguments,
-        'response_error_code'   =>  $response_error_code,
-        'response_data'         =>  $response_data,
-        'response_time'         =>  $response_time,
-        'response_query_count'  =>  $response_query_count,
-        'response_query_time'   =>  $response_query_time
-      )); 
+      $api_log_resource->create(
+        array(
+          'request_api_key'       =>  $request_api_key,
+          'request_resource'      =>  $request_resource,
+          'request_method'        =>  $request_method,
+          'request_arguments'     =>  $request_arguments,
+          'response_error_code'   =>  $response_error_code,
+          'response_data'         =>  $response_data,
+          'response_time'         =>  $response_time,
+          'response_query_count'  =>  $response_query_count,
+          'response_query_time'   =>  $response_query_time
+        )
+      );
     }
     else {
       $response_error_code = null;
@@ -900,7 +929,7 @@ final class cora {
         $request_api_key = $api_call['api_key'];
         $request_resource = $api_call['resource'];
         $request_method = $api_call['method'];
-        $request_arguments = isset($api_call['arguments']) ? $api_call['arguments'] : null;
+        $request_arguments = (isset($api_call['arguments']) === true) ? $api_call['arguments'] : null;
 
         $response_time = $this->response_times[$i];
         $response_query_count = $this->response_query_counts[$i];
@@ -916,17 +945,19 @@ final class cora {
           $response_data = null;
         }
 
-        $api_log_resource->create(array(
-          'request_api_key'       =>  $request_api_key,
-          'request_resource'      =>  $request_resource,
-          'request_method'        =>  $request_method,
-          'request_arguments'     =>  $request_arguments,
-          'response_error_code'   =>  $response_error_code,
-          'response_data'         =>  $response_data,
-          'response_time'         =>  $response_time,
-          'response_query_count'  =>  $response_query_count,
-          'response_query_time'   =>  $response_query_time
-        ));    
+        $api_log_resource->create(
+          array(
+            'request_api_key'       =>  $request_api_key,
+            'request_resource'      =>  $request_resource,
+            'request_method'        =>  $request_method,
+            'request_arguments'     =>  $request_arguments,
+            'response_error_code'   =>  $response_error_code,
+            'response_data'         =>  $response_data,
+            'response_time'         =>  $response_time,
+            'response_query_count'  =>  $response_query_count,
+            'response_query_time'   =>  $response_query_time
+          )
+        );
       }
     }
   }

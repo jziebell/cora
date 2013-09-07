@@ -1,0 +1,20 @@
+<phpunit bootstrap="phpunit.php">
+  <testsuites>
+    <testsuite name="Cora">
+      <!-- <file>api_log_test.php</file> -->
+      <!-- <file>api_session_test.php</file> -->
+      <file>api_test.php</file>
+      <!-- <file>api_user_ip_test.php</file> -->
+      <!-- <file>api_user_session_test.php</file> -->
+      <!-- <file>api_user_test.php</file> -->
+      <!-- <file>bcrypt_test.php</file> -->
+      <!-- <file>cora_test.php</file> -->
+      <!-- <file>crud_test.php</file> -->
+      <!-- <file>database_test.php</file> -->
+      <!-- <file>session_test.php</file> -->
+    </testsuite>
+  </testsuites>
+  <logging>
+    <log type="coverage-html" target="coverage" charset="UTF-8" highlight="true"/>
+  </logging>
+</phpunit>

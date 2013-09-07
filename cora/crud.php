@@ -3,16 +3,17 @@
 namespace cora;
 
 /**
- * CRUD base class for most resources. Provides the ability to create (insert),
- * read (select), update (update), and delete (update set deleted=1). There are
- * also a few helper methods: read_id, get, undelete, and hard_delete.
+ * CRUD base class for most resources. Provides the ability to create
+ * (insert), read (select), update (update), and delete (update set
+ * deleted=1). There are also a few extra methods: read_id, get, undelete, and
+ * hard_delete.
  *
  * These methods can (and should) be overridden by child classes. The most
- * basic override would simply call the parent function. More advanced overrides
- * might set a value like created_by before creating.
+ * basic override would simply call the parent function. More advanced
+ * overrides might set a value like created_by before creating.
  *
- * Child classes can, at any time, call the parent methods directly from any of
- * their methods.
+ * Child classes can, at any time, call the parent methods directly from any
+ * of their methods.
  *
  * @author Jon Ziebell
  */
@@ -20,10 +21,11 @@ abstract class crud extends api {
 
   /**
    * Insert an item into the current resource with the provided attributes.
-   * Setting of the primary key column is not allowed and will be overwritten if
-   * you try.
+   * Setting of the primary key column is not allowed and will be overwritten
+   * if you try.
    *
    * @param array $attributes An array of attributes to set for this item
+   *
    * @return mixed The id of the inserted row or the row itself.
    */
   protected function create($attributes) {
@@ -37,12 +39,13 @@ abstract class crud extends api {
    * altered by manually specifying deleted=1 or deleted=array(0, 1) in
    * $where_clause.
    *
-   * @param array $where_clause An array of key value pairs to search by and can
-   *     include arrays if you want to search in() something.
+   * @param array $where_clause An array of key value pairs to search by and
+   * can include arrays if you want to search in() something.
    * @param array $columns The columns from the resource to return. If not
-   *     specified, all columns are returned.
-   * @return array The requested items with the requested columns in a 0-indexed
-   *     array.
+   * specified, all columns are returned.
+   *
+   * @return array The requested items with the requested columns in a
+   * 0-indexed array.
    */
   protected function read($where_clause = array(), $columns = array()) {
     $where_clause = $where_clause + array('deleted' => 0);
@@ -50,15 +53,16 @@ abstract class crud extends api {
   }
 
   /**
-   * See comment on crud->select() for more detail. The return array is indexed
-   * by the primary key of the resource items.
+   * See comment on crud->select() for more detail. The return array is
+   * indexed by the primary key of the resource items.
    *
    * @param $where_clause An array of key value pairs to search by and can
-   *     include arrays if you want to search in() something.
-   * @param $columns The columns from the resource to return. If not specified,
-   *     all columns are returned.
+   * include arrays if you want to search in() something.
+   * @param $columns The columns from the resource to return. If not
+   * specified, all columns are returned.
+   *
    * @return array The requested items with the requested colums in a primary-
-   *     key-indexed array.
+   * key-indexed array.
    */
   protected function read_id($where_clause = array(), $columns = array()) {
     $rows = $this->read($where_clause, $columns);
@@ -71,13 +75,15 @@ abstract class crud extends api {
 
   /**
    * Selects an item by the primary key from the current resource. This will
-   * select both deleted and not deleted items since the specification of the id
-   * indicates you know what you want.
+   * select both deleted and not deleted items since the specification of the
+   * id indicates you know what you want.
    *
    * @param int $id The id of the item to get.
-   * @param $columns The columns from the resource to return. If not specified,
-   *     all columns are returned.
+   * @param $columns The columns from the resource to return. If not
+   * specified, all columns are returned.
+   *
    * @return array The requested item with the requested columns.
+   *
    * @throws \Exception If the item does not exist.
    */
   protected function get($id, $columns = array()) {
@@ -100,6 +106,7 @@ abstract class crud extends api {
    *
    * @param int $id The id of the item to update.
    * @param array $attributes An array of attributes to set for this item
+   *
    * @return int The number of affected rows.
    */
   protected function update($id, $attributes) {
@@ -113,21 +120,23 @@ abstract class crud extends api {
    * database.
    *
    * @param int $id The id of the item to delete.
+   *
    * @return int The number of rows affected by the delete. If the item is
-   *     already deleted or not found, this value will be 0. Otherwise it will
-   *     be 1.
+   * already deleted or not found, this value will be 0. Otherwise it will be
+   * 1.
    */
   protected function delete($id) {
     return $this->update($id, array('deleted' => 1));
   }
 
   /**
-   * Undeletes an item with the provided id from the current resource. This will
-   * update the row and set deleted=0.
+   * Undeletes an item with the provided id from the current resource. This
+   * will update the row and set deleted=0.
    *
    * @param int $id The id of the item to delete.
-   * @return int The number of rows affected by the undelete. If the item is not
-   *     deleted or not found, this value will be 0. Otherwise it will be 1.
+   *
+   * @return int The number of rows affected by the undelete. If the item is
+   * not deleted or not found, this value will be 0. Otherwise it will be 1.
    */
   protected function undelete($id) {
     return $this->update($id, array('deleted' => 0));
@@ -140,9 +149,10 @@ abstract class crud extends api {
    * information due to some privacy laws or else for performance.
    *
    * @param int $id The id of the item to delete.
+   *
    * @return int The number of rows affected by the delete. If the item is
-   *     already deleted or not found, this value will be 0. Otherwise it will
-   *     be 1.
+   * already deleted or not found, this value will be 0. Otherwise it will be
+   * 1.
    */
   protected function hard_delete($id) {
     return $this->database->hard_delete($this->resource, $id);
