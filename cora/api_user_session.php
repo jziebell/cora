@@ -12,6 +12,7 @@ final class api_user_session extends session {
 
   /**
    * The singleton.
+   *
    * @var api_session
    */
   private static $instance;
@@ -21,7 +22,8 @@ final class api_user_session extends session {
    * instantiated using the get_instance() function. It does not otherwise do
    * anything.
    */
-  private function __construct() {}
+  private function __construct() {
+  }
 
   /**
    * Use this function to instantiate this class instead of calling new
@@ -32,7 +34,7 @@ final class api_user_session extends session {
    * @return api_session A new api_session object or the already created one.
    */
   public static function get_instance() {
-    if(!isset(self::$instance)) {
+    if(isset(self::$instance) === false) {
       self::$instance = new self();
     }
     return self::$instance;
@@ -40,11 +42,11 @@ final class api_user_session extends session {
 
   /**
    * Return whether or not this class has been instantiated.
-   * 
+   *
    * @return bool
    */
   public static function has_instance() {
     return isset(self::$instance);
-  }  
+  }
 
 }

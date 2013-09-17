@@ -3,8 +3,8 @@
 namespace cora;
 
 /**
- * Stores a log of API requests and responses. Intended usage is to process the
- * request to the end (exception or not) and then log it.
+ * Stores a log of API requests and responses. Intended usage is to process
+ * the request to the end (exception or not) and then log it.
  *
  * @author Jon Ziebell
  */
@@ -15,6 +15,7 @@ class api_log extends crud {
 	 * and disallow overriding the timestamp.
 	 *
 	 * @param array $attributes The attributes to insert.
+	 *
 	 * @return int The ID of the inserted row.
 	 */
 	public function create($attributes) {

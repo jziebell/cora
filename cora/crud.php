@@ -56,9 +56,9 @@ abstract class crud extends api {
    * See comment on crud->select() for more detail. The return array is
    * indexed by the primary key of the resource items.
    *
-   * @param $where_clause An array of key value pairs to search by and can
-   * include arrays if you want to search in() something.
-   * @param $columns The columns from the resource to return. If not
+   * @param array $where_clause An array of key value pairs to search by and
+   * can include arrays if you want to search in() something.
+   * @param array $columns The columns from the resource to return. If not
    * specified, all columns are returned.
    *
    * @return array The requested items with the requested colums in a primary-
@@ -79,7 +79,7 @@ abstract class crud extends api {
    * id indicates you know what you want.
    *
    * @param int $id The id of the item to get.
-   * @param $columns The columns from the resource to return. If not
+   * @param array $columns The columns from the resource to return. If not
    * specified, all columns are returned.
    *
    * @return array The requested item with the requested columns.
@@ -97,7 +97,9 @@ abstract class crud extends api {
     if(count($item) === 1) {
       return $item[0];
     }
-    else throw new \Exception('Resource item not found.', 1100);
+    else {
+      throw new \Exception('Resource item not found.', 1100);
+    }
   }
 
   /**

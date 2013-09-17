@@ -8,16 +8,17 @@ namespace cora;
  *
  * @author Jon Ziebell
  */
-final class DuplicateEntryException extends \Exception {};
+final class DuplicateEntryException extends \Exception {
+};
 
 /**
- * This is a MySQLi database wrapper. It provides access to some basic functions
- * like select, insert, and update. Those functions automatically escape table
- * names, column names, and parameters for you using a number of the private
- * functions defined here.
+ * This is a MySQLi database wrapper. It provides access to some basic
+ * functions like select, insert, and update. Those functions automatically
+ * escape table names, column names, and parameters for you using a number of
+ * the private functions defined here.
  *
- * Alternatively, you can write your own queries (and use the escape() function
- * to help), and just call query() to run your own.
+ * Alternatively, you can write your own queries (and use the escape()
+ * function to help), and just call query() to run your own.
  *
  * @author Jon Ziebell
  */
@@ -32,24 +33,28 @@ final class database extends \mysqli {
   /**
    * Whether or not a transaction has been started. Used to make sure only one
    * is started at a time and it gets closed only if it's open.
+   *
    * @var bool
    */
   private $transaction_started = false;
 
   /**
    * The total number of queries executed.
+   *
    * @var int
    */
   private $query_count = 0;
 
   /**
    * The total time all queries have taken to execute.
+   *
    * @var float;
    */
   private $query_time = 0;
 
   /**
    * The cora object.
+   *
    * @var cora
    */
   private $cora;
@@ -57,8 +62,8 @@ final class database extends \mysqli {
   /**
    * Create the mysql object used for the current API call and start a
    * transaction. The same transaction is used for all queries on this
-   * connection, even in the case of a multi-api call. The transaction is auto-
-   * closed upon destruction of this class.
+   * connection, even in the case of a multi-api call. The transaction is
+   * auto- closed upon destruction of this class.
    *
    * This function is private because this class is a singleton and should be
    * instantiated using the get_instance() function.
@@ -75,9 +80,11 @@ final class database extends \mysqli {
     );
 
     if($this->connect_error !== null) {
-      $this->cora->set_error_extra_info(array(
-        'database_error' => $this->connect_error
-      ));
+      $this->cora->set_error_extra_info(
+        array(
+          'database_error' => $this->connect_error
+        )
+      );
       throw new \Exception('Could not connect to database.', 1200);
     }
 
@@ -88,11 +95,9 @@ final class database extends \mysqli {
   }
 
   /**
-   * Upon destruction of this class, close the open transaction. I check to make
-   * sure one is open, but that should really always be the case since one gets
-   * opened regardless.
-   *
-   * @return null
+   * Upon destruction of this class, close the open transaction. I check to
+   * make sure one is open, but that should really always be the case since
+   * one gets opened regardless.
    */
   public function __destruct() {
     if($this->transaction_started === true) {
@@ -102,26 +107,25 @@ final class database extends \mysqli {
 
   /**
    * Use this function to instantiate this class instead of calling new
-   * database() (which isn't allowed anyways). This avoids confusion from trying
-   * to use dependency injection by passing an instance of this class around
-   * everywhere. It also keeps a single connection open to the database for the
-   * current API call.
+   * database() (which isn't allowed anyways). This avoids confusion from
+   * trying to use dependency injection by passing an instance of this class
+   * around everywhere. It also keeps a single connection open to the database
+   * for the current API call.
    *
    * @return database A new database object or the already created one.
    */
   public static function get_instance() {
-    if(!isset(self::$instance)) {
+    if(isset(self::$instance) === false) {
       self::$instance = new self();
     }
     return self::$instance;
-  }  
+  }
 
   /**
-   * A transaction is started every time an API call is made and thus this class
-   * is initalized.
+   * A transaction is started every time an API call is made and thus this
+   * class is initalized.
    *
    * @throws \Exception If the transaction fails to start.
-   * @return null
    */
   private function start_transaction() {
     if($this->transaction_started === false) {
@@ -138,7 +142,6 @@ final class database extends \mysqli {
    * destructed.
    *
    * @throws \Exception If the transaction fails to commit.
-   * @return null
    */
   private function commit_transaction() {
     if($this->transaction_started === true) {
@@ -154,7 +157,6 @@ final class database extends \mysqli {
    * Rollback the current transaction.
    *
    * @throws \Exception If the transaction fails to rollback.
-   * @return null
    */
   private function rollback_transaction() {
     if($this->transaction_started === true) {
@@ -168,15 +170,16 @@ final class database extends \mysqli {
 
   /**
    * Escape a value to be used in a query. Only necessary when doing custom
-   * queries. All helper functions like select, insert, and update escape values
-   * for you using this function.
+   * queries. All helper functions like select, insert, and update escape
+   * values for you using this function.
    *
    * @param mixed $value The value to escape. Boolean true and false are
-   *     converted to int 1 and 0 respectively.
-   * @param bool $basic If overridden to true, just return real_escape_string of
-   *     $value. If left alone or set to false, return a value appropriate to be
-   *     used like "set foo=$bar" as it will have single quotes around it if
-   *     necessary.
+   * converted to int 1 and 0 respectively.
+   * @param bool $basic If overridden to true, just return real_escape_string
+   * of $value. If left alone or set to false, return a value appropriate to
+   * be used like "set foo=$bar" as it will have single quotes around it if
+   * necessary.
+   *
    * @return string The escaped value.
    */
   public function escape($value, $basic = false) {
@@ -193,7 +196,7 @@ final class database extends \mysqli {
     else if($value === false) {
       return '0';
     }
-    else if(is_int($value) || ctype_digit($value)) {
+    else if(is_int($value) === true || ctype_digit($value) === true) {
       return $value;
     }
     else {
@@ -208,12 +211,14 @@ final class database extends \mysqli {
    * keywords as table and column names.
    *
    * @param string $identifier The identifier to escape
+   *
    * @throws \Exception If the identifier does not match the character class
-   *     [A-Za-z0-9_]. That would make it invalid for use in MySQL.
+   * [A-Za-z0-9_]. That would make it invalid for use in MySQL.
+   *
    * @return string The escaped identifier.
    */
   public function escape_identifier($identifier) {
-    if(preg_match('/^\w+$/', $identifier)) {
+    if(preg_match('/^\w+$/', $identifier) === true) {
       return '`' . $identifier . '`';
     }
     else {
@@ -222,23 +227,22 @@ final class database extends \mysqli {
   }
 
   /**
-   * Builds a properly escaped string for the 'where column=value' portion of a
-   * query.
+   * Builds a properly escaped string for the 'where column=value' portion of
+   * a query.
    *
    * @param string $column The query column.
    * @param mixed $value The value(s) to compare against. You can use null, an
-   *     array, or any other value here and the appropriate comparison (is null,
-   *     in, =) will be used.
-   * @return string The appropriate escaped string. Examples:
-   *     `foo` is null
-   *     `foo` in(1,2,3)
-   *     `foo`='bar'
+   * array, or any other value here and the appropriate comparison (is null,
+   * in, =) will be used.
+   *
+   * @return string The appropriate escaped string. Examples: `foo` is null
+   * `foo` in(1,2,3) `foo`='bar'
    */
   private function column_equals_value_where($column, $value) {
     if($value === null) {
       return $this->escape_identifier($column) . ' is null';
     }
-    else if(is_array($value)) {
+    else if(is_array($value) === true) {
       return $this->escape_identifier($column) .
         ' in (' . implode(',', array_map(array($this, 'escape'), $value)) . ')';
     }
@@ -253,9 +257,9 @@ final class database extends \mysqli {
    *
    * @param string $column The query column.
    * @param mixed $value The value to set.
-   * @return string The appropriate escaped string. Examples:
-   *     `foo`='bar'
-   *     `foo`=5
+   *
+   * @return string The appropriate escaped string. Examples: `foo`='bar'
+   * `foo`=5
    */
   private function column_equals_value_set($column, $value) {
     return $this->escape_identifier($column) . '=' . $this->escape($value);
@@ -275,16 +279,18 @@ final class database extends \mysqli {
    * FUNCTION DIRECTLY. THIS FUNCTION DOES NOT DO IT FOR YOU.
    *
    * @param string $query The query to execute.
+   *
    * @throws DuplicateEntryException if the query failed due to a duplicate
    * entry (unique key violation)
    * @throws \Exception If the query failed and was not caught by any other
    * exception types.
+   *
    * @return mixed The result directly from $mysqli->query.
    */
   public function query($query) {
     // If this was an insert, update or delete, start a transaction
     $query_type = substr(trim($query), 0, 6);
-    if(in_array($query_type, array('insert', 'update', 'delete'))) {
+    if(in_array($query_type, array('insert', 'update', 'delete')) === true) {
       $this->start_transaction();
     }
 
@@ -296,10 +302,12 @@ final class database extends \mysqli {
       $database_error = $this->error;
       $this->rollback_transaction();
 
-      $this->cora->set_error_extra_info(array(
-        'database_error' => $database_error,
-        'query' => $query
-      ));
+      $this->cora->set_error_extra_info(
+        array(
+          'database_error' => $database_error,
+          'query' => $query
+        )
+      );
 
       if(stripos($database_error, 'duplicate entry') !== false) {
         throw new DuplicateEntryException('Duplicate database entry.', 1205);
@@ -320,12 +328,13 @@ final class database extends \mysqli {
    * Select some columns from some table with some where clause.
    *
    * @param string $table The table to select from
-   * @param array $where_clause An array of key value pairs to search by and can
-   *     include arrays if you want to search in() something.
-   * @param array $columns The columns to return. If not specified, all columns
-   *     are returned.
+   * @param array $where_clause An array of key value pairs to search by and
+   * can include arrays if you want to search in() something.
+   * @param array $columns The columns to return. If not specified, all
+   * columns are returned.
+   *
    * @return array An array of the database rows with the specified columns.
-   *     Even a single result will still be returned in an array of size 1.
+   * Even a single result will still be returned in an array of size 1.
    */
   public function select($table, $where_clause = array(), $columns = array()) {
     // Build the column listing.
@@ -334,7 +343,8 @@ final class database extends \mysqli {
     }
     else {
       $columns = implode(
-        ',', array_map(array($this, 'escape_identifier'), $columns)
+        ',',
+        array_map(array($this, 'escape_identifier'), $columns)
       );
     }
 
@@ -369,12 +379,15 @@ final class database extends \mysqli {
   /**
    * Update some columns in a table by the primary key. Doing updates without
    * using the primary key are supported by writing your own queries and using
-   * the database->query() function. That should be a rare circumstance though.
+   * the database->query() function. That should be a rare circumstance
+   * though.
    *
    * @param string $table The table to update.
    * @param int $id The value of the primary key to update.
    * @param array $attributes The attributes to set.
+   *
    * @throws \Exception If no attributes were specified.
+   *
    * @return int The number of rows affected by the update (could be 0).
    */
   public function update($table, $id, $attributes) {
@@ -418,6 +431,7 @@ final class database extends \mysqli {
    *
    * @param string $table The table to delete from.
    * @param int $id The value of the primary key to delete.
+   *
    * @return int The number of rows affected by the delete (could be 0).
    */
   public function delete($table, $id) {
@@ -435,19 +449,23 @@ final class database extends \mysqli {
    *
    * @param string $table The table to insert into.
    * @param array $attributes The attributes to set on the row
+   *
    * @return int The primary key of the inserted row.
    */
   public function insert($table, $attributes) {
-    $columns = implode(',',
-      array_map(array($this, 'escape_identifier'), array_keys($attributes)));
+    $columns = implode(
+      ',',
+      array_map(array($this, 'escape_identifier'), array_keys($attributes))
+    );
 
-    $values = implode(',',
-      array_map(array($this, 'escape'), $attributes));
+    $values = implode(
+      ',',
+      array_map(array($this, 'escape'), $attributes)
+    );
 
     $query =
       'insert into ' . $this->escape_identifier($table) .
-      '(' . $columns . ') ' .
-      'values (' . $values . ')';
+      '(' . $columns . ') values (' . $values . ')';
 
     $this->query($query);
     return $this->insert_id;
@@ -463,7 +481,8 @@ final class database extends \mysqli {
    *     insert.
    * @return int The primary key of the first inserted row.
    */
-/* This is cool and all, but leaving it out until I figure out auditing and whether or not it will work properly with it */
+/* This is cool and all, but leaving it out until I figure out
+ auditing and whether or not it will work properly with it */
 /*  public function multi_insert($table, $attributes) {
 
     // Get a list of all keys that appear in all items to insert.

@@ -13,7 +13,11 @@ namespace cora;
 class api_user_ip extends crud {
 
   /**
+   * [insert description]
    *
+   * @param [type] $attributes [description]
+   *
+   * @return [type] [description]
    */
   public function insert($attributes) {
     // TODO: Can two different API keys use the same IP address? Sure I think
@@ -39,14 +43,20 @@ class api_user_ip extends crud {
 
   /**
    * Deletes work a little bit differently for this resource. Instead of
-   * providing the primary key, you provide the api_user_id and the ip address.
+   * providing the primary key, you provide the api_user_id and the ip
+   * address.
+   *
+   * @param [type] $api_user_id [description]
+   * @param [type] $ip [description]
+   *
+   * @return [type] [description]
    */
   public function delete($api_user_id, $ip) {
     // TODO: permissions? Only the current API user or a "master" api user can
     // do this for the current user. Should throw an exception if you try
     // someone else.
     $api_user_id_escaped = $this->database->escape($api_user_id);
-    $ip_escaped = $this->database->escape(ip2long($attributes['ip']));
+    $ip_escaped = $this->database->escape(ip2long($ip));
     $query = "
       update
         api_user_ip
@@ -63,7 +73,7 @@ class api_user_ip extends crud {
    * Delete all of the assigned IP addresses for a given API user. This will
    * efficively allow all IP addresses.
    *
-   * @param int $api_user_id
+   * @param int $api_user_id [description]
    */
   public function delete_all_for_api_user($api_user_id) {
     // TODO: Permissions
@@ -78,7 +88,5 @@ class api_user_ip extends crud {
     ";
     return $this->database->query($query);
   }
-
-
 
 }

@@ -10,27 +10,29 @@ namespace cora;
 class api_user extends crud {
 
   /**
-   * Creates a new API user. The API key is automatically generated. If that API
-   * key already exists for another user, try a new API key up to 3 times.
+   * Creates a new API user. The API key is automatically generated. If that
+   * API key already exists for another user, try a new API key up to 3 times.
    *
-   * @param array $attributes
+   * @param array $attributes See parent.
+   *
    * @throws \Exception If creating API users is disabled.
    * @throws \Exception If a username was not provided.
    * @throws \Exception If a password was not provided.
+   *
    * @return int
    */
   public function create($attributes) {
     if($this->cora->get_setting('enable_api_user_creation') === false) {
       throw new \Exception('API user creation is disabled.', 1500);
     }
-    if(!isset($attributes['username'])) {
+    if(isset($attributes['username']) === false) {
       throw new \Exception('A username is required.', 1501);
     }
-    if(!isset($attributes['password'])) {
+    if(isset($attributes['password']) === false) {
       throw new \Exception('A password is required.', 1502);
     }
     $attributes['password'] = bcrypt::get_hash($attributes['password']);
-    $attributes['api_key'] = self::generate_api_key();
+    $attributes['api_key'] = $this->generate_api_key();
 
     // Note that there is an infinitesimally‎ small chance that a duplicate API
     // key is generated here. Probably not worth catching. Could get the same
@@ -41,26 +43,26 @@ class api_user extends crud {
   /**
    * Search for API users.
    *
-   * @param array $where_clause
-   * @param array $columns
+   * @param array $where_clause See parent.
+   * @param array $columns See parent.
+   *
    * @return array
    */
   public function read($where_clause = array(), $columns = array()) {
     return parent::read($where_clause, $columns);
   }
 
-
   /**
    * Log in by checking the provided password against the stored password for
    * the provided username. If it's a match, get a session.
    *
-   * @param string $username
-   * @param string $password
+   * @param string $username The username.
+   * @param string $password The password.
    * @param bool $remember_me If set to true the session never expires.
+   *
    * @return bool True if success, false if failure.
    */
   public function log_in($username, $password, $remember_me) {
-
     if($remember_me === true) {
       $timeout = null;
       $life = null;
@@ -87,10 +89,11 @@ class api_user extends crud {
       return true;
     }
 
-  }  
+  }
 
   /**
    * [update description]
+   *
    * @return [type] [description]
    */
   public function update($id, $attributes) {
@@ -99,6 +102,7 @@ class api_user extends crud {
 
   /**
    * [delete description]
+   *
    * @return [type] [description]
    */
   public function delete($id) {
@@ -107,8 +111,9 @@ class api_user extends crud {
 
   /**
    * Check to see if an API key is valid.
-   * 
+   *
    * @param string $api_key The API key to look up.
+   *
    * @return bool Whether or not the API key is valid.
    */
   public function is_valid_api_key($api_key) {
@@ -137,7 +142,7 @@ class api_user extends crud {
     $tries = $tries_remaining = 3;
     do {
       try {
-        $attributes = array('api_key' => self::generate_api_key());
+        $attributes = array('api_key' => $this->generate_api_key());
         return parent::_update($id, $attribues);
       } catch (DuplicateEntryException $e) {
         // Catch exception for duplicate API key and try again.
@@ -153,7 +158,7 @@ class api_user extends crud {
    *
    * @return string
    */
-  private static function generate_api_key() {
+  private function generate_api_key() {
     return strtolower(sha1(uniqid(mt_rand(), true)));
   }
 

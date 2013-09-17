@@ -25,10 +25,10 @@ namespace cora;
 final class cora {
 
   private $settings = array(
-     // Whether or not debugging is enabled. Debugging will produce additional
-     // output in the API response, including data->error_file,
-     // data->error_line, data->error_trace, data->error_extra_info, and the
-     // original request.
+    // Whether or not debugging is enabled. Debugging will produce additional
+    // output in the API response, including data->error_file,
+    // data->error_line, data->error_trace, data->error_extra_info, and the
+    // original request.
     'debug' => true,
 
     // Database host. Can be IP or hostname.
@@ -319,8 +319,6 @@ final class cora {
    * valid JSON
    * @throws \Exception If this is a batch request and it exceeds the maximum
    * number of api calls allowed in one batch.
-   *
-   * @return null
    */
   public function process_request($request) {
     // Used to have this in the constructor, but the database uses this class
@@ -435,8 +433,6 @@ final class cora {
    * @throws \Exception If the specified API key was invalid.
    * @throws \Exception If a private method was called without a valid
    * session.
-   *
-   * @return null
    */
   private function check_api_call_for_errors($call, $call_map, $call_type) {
     if($call['api_key'] === null) {
@@ -601,8 +597,6 @@ final class cora {
    * Sets error_extra_info.
    *
    * @param mixed $error_extra_info Whatever you want the extra info to be.
-   *
-   * @return null
    */
   public function set_error_extra_info($error_extra_info) {
     $this->error_extra_info = $error_extra_info;
@@ -636,8 +630,6 @@ final class cora {
    * completed, so the last call to this function will win.
    *
    * @param array $headers The headers you want to set.
-   *
-   * @return null
    */
   public function set_headers($headers) {
     $this->headers = $headers;
@@ -673,8 +665,6 @@ final class cora {
    * go here.
    *
    * @param Exception $e The exception.
-   *
-   * @return null
    */
   public function exception_handler($e) {
     $this->set_error_response(
@@ -697,12 +687,8 @@ final class cora {
    * @param string $error_file The file the error happened in.
    * @param int $error_line The line of the file the error happened on.
    * @param array $error_trace The stack trace for the error.
-   *
-   * @return null
    */
   public function set_error_response($error_message, $error_code, $error_file, $error_line, $error_trace) {
-    // $this->response_error_code = $error_code;
-
     if($this->get_setting('debug') === true) {
       $this->response = array(
         'success' => false,
@@ -738,8 +724,6 @@ final class cora {
    *
    * @throws \Exception If a this was a batch request but one of the api calls
    * changed the content-type to anything but the default.
-   *
-   * @return null
    */
   public function shutdown_handler() {
     // Since the shutdown handler is rather verbose in what it has to check for
@@ -807,7 +791,8 @@ final class cora {
           $this->output_headers();
           die(json_encode($this->response));
         }
-        else { // For non-JSON data...
+        else {
+          // For non-JSON data...
           // Only single call requests are allowed to be non-JSON. You can't
           // even get to this point for batch requests because as soon as you
           // try to manipulate the headers cora will throw an exception.
@@ -821,7 +806,7 @@ final class cora {
         }
       }
     }
-    catch(\Exception $e) { // See comment on the try{}
+    catch(\Exception $e) {
       $this->set_error_response(
         $e->getMessage(),
         $e->getCode(),
@@ -837,8 +822,6 @@ final class cora {
 
   /**
    * Output whatever the headers are currently set to.
-   *
-   * @return null
    */
   private function output_headers() {
     foreach($this->headers as $key => $value) {
@@ -849,8 +832,6 @@ final class cora {
   /**
    * Resets the headers to default. Have to do this in case one of the API
    * calls changes them and there was an error to handle.
-   *
-   * @return null
    */
   private function reset_headers() {
     $this->headers = array('Content-type' => 'application/json; charset=UTF-8');
@@ -864,15 +845,13 @@ final class cora {
    * application/json; charset=UTF-8
    */
   private function content_type_is_json() {
-    return    isset($this->headers['Content-type']) === true
-           && $this->headers['Content-type'] === 'application/json; charset=UTF-8';
+    return isset($this->headers['Content-type']) === true
+              && $this->headers['Content-type'] === 'application/json; charset=UTF-8';
   }
 
   /**
    * Log the request and response to the database. The logged response is
    * truncated to 16kb for sanity.
-   *
-   * @return null
    */
   private function log() {
     $api_log_resource = new api_log();
@@ -923,13 +902,18 @@ final class cora {
     }
     else {
       $response_error_code = null;
-      for($i = 0; $i < count($this->api_calls); $i++) {
+      $count_api_calls = count($this->api_calls);
+      for($i = 0; $i < $count_api_calls; $i++) {
         $api_call = $this->api_calls[$i];
-
         $request_api_key = $api_call['api_key'];
         $request_resource = $api_call['resource'];
         $request_method = $api_call['method'];
-        $request_arguments = (isset($api_call['arguments']) === true) ? $api_call['arguments'] : null;
+        if(isset($api_call['arguments']) === true) {
+          $request_arguments = $api_call['arguments'];
+        }
+        else {
+          $request_arguments = null;
+        }
 
         $response_time = $this->response_times[$i];
         $response_query_count = $this->response_query_counts[$i];
