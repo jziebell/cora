@@ -127,7 +127,8 @@ final class cora {
       ),
       'non_session' => array(
         'test_crud' => array(
-          'read' => array('where_clause', 'columns')
+          'read' => array('where_clause', 'columns'),
+          'get' => array('id', 'columns')
         ),
         'test_user' => array(
           'log_in' => array('username', 'password', 'remember_me')
@@ -580,28 +581,32 @@ final class cora {
   private function get_arguments($api_call, $argument_keys) {
     $arguments = array();
 
-    // All arguments are sent in the "arguments" key as JSON
-    $api_call_arguments = json_decode($api_call['arguments'], true);
+    // Arguments are not strictly required. If a method requires them then you
+    // will still get an error, but they are not required by the API.
+    if(isset($api_call['arguments'])) {
+      // All arguments are sent in the "arguments" key as JSON.
+      $api_call_arguments = json_decode($api_call['arguments'], true);
 
-    if($api_call_arguments === false) {
-      throw new \Exception('Arguments are not valid JSON.', 1011);
-    }
-
-    foreach($argument_keys as $argument_key) {
-      if(isset($api_call_arguments[$argument_key]) === true) {
-        $arguments[] = $api_call_arguments[$argument_key];
+      if($api_call_arguments === false) {
+        throw new \Exception('Arguments are not valid JSON.', 1011);
       }
-      else {
-        // This is a bit confusing, but this is nice in that it allows for
-        // default arguments. For example: let's say we have the following:
-        //
-        // api_call($one, $two = 'foo')
-        //
-        // If I don't specify $two in my arguments, I want the function to use
-        // my default value. If I were to pass (1, null) to that function, I
-        // would lose the default. Instead, as soon as I come across an argument
-        // that wasn't provided, just return the current results.
-        return $arguments;
+
+      foreach($argument_keys as $argument_key) {
+        if(isset($api_call_arguments[$argument_key]) === true) {
+          $arguments[] = $api_call_arguments[$argument_key];
+        }
+        else {
+          // This is a bit confusing, but this is nice in that it allows for
+          // default arguments. For example: let's say we have the following:
+          //
+          // api_call($one, $two = 'foo')
+          //
+          // If I don't specify $two in my arguments, I want the function to use
+          // my default value. If I were to pass (1, null) to that function, I
+          // would lose the default. Instead, as soon as I come across an argument
+          // that wasn't provided, just return the current results.
+          return $arguments;
+        }
       }
     }
     return $arguments;
