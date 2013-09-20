@@ -1,15 +1,12 @@
 <?php
 
 /**
- * API entry point. This sets the header, time limit, error handlers,
- * autoloader, etc and then tells Cora to process the incoming API request. Cora
- * will return JSON which is echoed out in the die().
+ * Entry point for the API. This sets up cora, the error/exception handlers,
+ * and then sends the request off for processing. All requests should start
+ * here.
  *
  * @author Jon Ziebell
  */
-
-// This API returns JSON data
-header('Content-type: application/json');
 
 // Compress output
 ob_start('ob_gzhandler');
@@ -23,9 +20,9 @@ ini_set('display_errors', '0');
 
 // Autoload classes as necessary so there are no includes/requires
 spl_autoload_register();
-    
+
 // Construct cora and set up error handlers
-$cora = new cora\cora();
+$cora = cora\cora::get_instance();
 set_error_handler(array($cora, 'error_handler'));
 set_exception_handler(array($cora, 'exception_handler'));
 
@@ -34,3 +31,10 @@ register_shutdown_function(array($cora, 'shutdown_handler'));
 
 // Go!
 $cora->process_request($_REQUEST);
+
+/**
+ * TODO: Things to document
+ * > batch API
+ * > cora::set_headers() and the difference between custom and not custom responses
+ * > how to use unicode (set meta tag, set up mysql tables, use proper encoding in response)
+ */

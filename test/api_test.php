@@ -15,7 +15,7 @@ class api_test extends test_case {
     // $api_resource = new cora\api();
     //
 
-
+    $crud_object_resource = new crud_object():
 
 
 
@@ -31,4 +31,14 @@ class api_test extends test_case {
     // $this->assertTrue($stub->concreteMethod());
   }
 
+}
+
+
+/**
+ * A sample crud object
+ */
+class crud_object extends cora\crud {
+  public function create($attributes) {
+    return true;
+  }
 }

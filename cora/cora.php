@@ -263,9 +263,19 @@ final class cora {
 
   /**
    * The headers to output in the shutdown handler.
+   *
    * @var array
    */
-  private $headers = array('Content-type' => 'application/json; charset=UTF-8');
+  private $headers;
+
+  /**
+   * Whether or not this is a custom response. If true, none of the Cora data
+   * like 'success' and 'data' is returned; only the actual data from the
+   * single API call is returned.
+   *
+   * @var bool
+   */
+  private $custom_response;
 
   /**
    * Extra information for errors. For example, the database class puts
@@ -360,6 +370,10 @@ final class cora {
     else {
       $this->api_calls[] = $request;
     }
+
+    // Set the default headers as a catch-all. Most API calls won't touch these,
+    // but it is possible for them to override headers as desired.
+    $this->set_default_headers();
 
     // Process each request.
     foreach($this->api_calls as $api_call) {
@@ -625,17 +639,53 @@ final class cora {
   /**
    * Sets the headers that should be used for this API call. This is useful
    * for doing things like returning files from the API where the content-type
-   * is no longer application/json; charset=UTF-8. This replaces all headers;
-   * headers are not outputted to the browser until all API calls have
-   * completed, so the last call to this function will win.
+   * is no longer application/json. This replaces all headers; headers are not
+   * outputted to the browser until all API calls have completed, so the last
+   * call to this function will win.
    *
-   * @param array $headers The headers you want to set.
+   * @param array $headers The headers to output.
+   * @param bool $custom_response Whether or not to wrap the response with the
+   * Cora data or just output the API call's return value.
+   *
+   * @throws \Exception If this is a batch request and a custom response was
+   * requested.
+   * @throws \Exception If this is a batch request and the content type was
+   * altered from application/json
+   * @throws \Exception If this is not a batch request and the content type
+   * was altered from application/json without a custom response.
    */
-  public function set_headers($headers) {
-    $this->headers = $headers;
-    if(isset($this->request['batch']) === true && $this->content_type_is_json() === false) {
-      throw new \Exception('Batch API calls must return JSON.', 1014);
+  public function set_headers($headers, $custom_response = false) {
+    if(isset($this->request['batch']) === true) {
+      if($custom_response === true) {
+        throw new \Exception('Batch API requests can not use a custom response.', 1015);
+      }
+      if($this->content_type_is_json($headers) === false) {
+        throw new \Exception('Batch API requests must return JSON.', 1014);
+      }
     }
+    else {
+      // Not a batch request
+      if($custom_response === false && $this->content_type_is_json($headers) === false) {
+        throw new \Exception('Non-custom responses must return JSON.', 1016);
+      }
+    }
+    $this->headers = $headers;
+    $this->custom_response = $custom_response;
+  }
+
+  /**
+   * Return whether or not the current output headers indicate that the
+   * content type is JSON. This is mostly just used to make sure that batch
+   * API calls output JSON.
+   *
+   * @param array $headers The headers to look at.
+   *
+   * @return bool Whether or not the output has a content type of
+   * application/json
+   */
+  private function content_type_is_json($headers) {
+    return isset($headers['Content-type']) === true
+      && stristr($headers['Content-type'], 'application/json') !== false;
   }
 
   /**
@@ -761,15 +811,15 @@ final class cora {
         }
 
         // Override whatever headers might have already been set.
-        $this->reset_headers();
+        $this->set_default_headers();
         $this->output_headers();
         die(json_encode($this->response));
       }
       else {
         // If we got here, no errors have occurred.
 
-        // For JSON data, build the response, log it, and output it. Simple.
-        if($this->content_type_is_json() === true) {
+        // For non-custom responses, build the response, log it, and output it.
+        if($this->custom_response === false) {
           $this->response = array('success' => true);
 
           if(isset($this->request['batch']) === true) {
@@ -792,17 +842,13 @@ final class cora {
           die(json_encode($this->response));
         }
         else {
-          // For non-JSON data...
-          // Only single call requests are allowed to be non-JSON. You can't
-          // even get to this point for batch requests because as soon as you
-          // try to manipulate the headers cora will throw an exception.
-          if(isset($this->request['batch']) === false) {
-            $this->response = $this->response_data[0];
-            $this->log();
+          // For custom responses, just output whatever we got. Batch requests
+          // can't get to this point since they are not allowed to be custom.
+          $this->response = $this->response_data[0];
+          $this->log();
 
-            $this->output_headers();
-            die($this->response);
-          }
+          $this->output_headers();
+          die($this->response);
         }
       }
     }
@@ -814,7 +860,7 @@ final class cora {
         $e->getLine(),
         $e->getTrace()
       );
-      $this->reset_headers();
+      $this->set_default_headers();
       $this->output_headers();
       die(json_encode($this->response));
     }
@@ -833,20 +879,40 @@ final class cora {
    * Resets the headers to default. Have to do this in case one of the API
    * calls changes them and there was an error to handle.
    */
-  private function reset_headers() {
-    $this->headers = array('Content-type' => 'application/json; charset=UTF-8');
+  private function set_default_headers() {
+    $this->set_headers(
+      array('Content-type' => 'application/json; charset=UTF-8'),
+      false
+    );
   }
 
   /**
-   * Return whether or not the output headers indicate that the content type
-   * is JSON. Basically, whether or not the default headers were overridden.
+   * Returns true for all loggable content types. Mostly JSON, XML, and other
+   * text-based types.
    *
-   * @return bool Whether or not the output has a content type of
-   * application/json; charset=UTF-8
+   * @return bool Whether or not the output has a content type that can be
+   * logged.
    */
-  private function content_type_is_json() {
-    return isset($this->headers['Content-type']) === true
-              && $this->headers['Content-type'] === 'application/json; charset=UTF-8';
+  private function content_type_is_loggable() {
+    if(isset($this->headers['Content-type']) === false) {
+      return false;
+    }
+    else {
+      $loggable_content_types = array(
+        'application/json',
+        'application/xml',
+        'application/javascript',
+        'text/html',
+        'text/xml',
+        'text/plain',
+        'text/css'
+      );
+      foreach($loggable_content_types as $loggable_content_type) {
+        if(stristr($this->headers['Content-type'], $loggable_content_type) !== false) {
+          return true;
+        }
+      }
+    }
   }
 
   /**
@@ -919,10 +985,9 @@ final class cora {
         $response_query_count = $this->response_query_counts[$i];
         $response_query_time = $this->response_query_times[$i];
 
-        // Don't log the response data if the output isn't JSON. Typical use
-        // case for that is using the API to get a file and there's no point to
-        // logging that in the DB.
-        if($this->content_type_is_json() === true) {
+        // The data could be an integer, an XML string, an array, etc, but let's
+        // just always json_encode it to keep things simple and standard.
+        if($this->content_type_is_loggable() === true) {
           $response_data = substr(json_encode($this->response_data[$i]), 0, 16384);
         }
         else {

@@ -48,14 +48,3 @@ class test_case extends PHPUnit_Framework_TestCase {
 //   }
 // }
 
-/**
- * A sample crud object
- */
-class crud_object extends cora\crud {
-  // public function __construct() {
-  //   $this->database = new database_mock();
-  // }
-  public function create($attributes) {
-    return true;
-  }
-}

@@ -2,7 +2,7 @@
 <html lang="en">
  <head>
   <meta charset="UTF-8">
-  <title>Code Coverage for /var/www/cora_dev/api/test/phpunit.php</title>
+  <title>Code Coverage for /var/www/cora-api/test/phpunit.php</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link href="css/bootstrap.min.css" rel="stylesheet">
   <link href="css/bootstrap-responsive.min.css" rel="stylesheet">
@@ -17,7 +17,7 @@
     <div class="row">
      <div class="span12">
       <ul class="breadcrumb">
-        <li><a href="index.html">/var/www/cora_dev/api</a> <span class="divider">/</span></li>
+        <li><a href="index.html">/var/www/cora-api</a> <span class="divider">/</span></li>
         <li><a href="test.html">test</a> <span class="divider">/</span></li>
         <li class="active">phpunit.php</li>
 
@@ -59,7 +59,7 @@
      </tr>
 
      <tr>
-      <td class="success" colspan="4"><a href="#10">cora_autoloader($class)</a></td>
+      <td class="success" colspan="4"><a href="#9">cora_autoloader($class)</a></td>
       <td class="success big">       <div class="progress progress-success" style="width: 100px;">
         <div class="bar" style="width: 100.00%;"></div>
        </div>
@@ -86,16 +86,15 @@
      <tr><td><div align="right"><a name="4"></a><a href="#4">4</a></div></td><td class="codeLine"><span class="comment">&nbsp;*&nbsp;I'm&nbsp;not&nbsp;100%&nbsp;sure,&nbsp;but&nbsp;I'm&nbsp;guessing&nbsp;PHPUnit&nbsp;has&nbsp;it's&nbsp;own&nbsp;autoload&nbsp;function.</span></td></tr>
      <tr><td><div align="right"><a name="5"></a><a href="#5">5</a></div></td><td class="codeLine"><span class="comment">&nbsp;*&nbsp;Using&nbsp;this&nbsp;will&nbsp;add&nbsp;to&nbsp;the&nbsp;autoload&nbsp;stack,&nbsp;but&nbsp;ALL&nbsp;autoload&nbsp;requests&nbsp;either</span></td></tr>
      <tr><td><div align="right"><a name="6"></a><a href="#6">6</a></div></td><td class="codeLine"><span class="comment">&nbsp;*&nbsp;get&nbsp;piped&nbsp;through&nbsp;both&nbsp;functions&nbsp;or&nbsp;go&nbsp;through&nbsp;mine&nbsp;first.&nbsp;I&nbsp;just&nbsp;set&nbsp;mine</span></td></tr>
-     <tr><td><div align="right"><a name="7"></a><a href="#7">7</a></div></td><td class="codeLine"><span class="comment">&nbsp;*&nbsp;up&nbsp;to&nbsp;only&nbsp;bother&nbsp;with&nbsp;files&nbsp;in&nbsp;the&nbsp;Cora&nbsp;namespace&nbsp;and&nbsp;it&nbsp;seems&nbsp;to&nbsp;work</span></td></tr>
-     <tr><td><div align="right"><a name="8"></a><a href="#8">8</a></div></td><td class="codeLine"><span class="comment">&nbsp;*&nbsp;pretty&nbsp;well.</span></td></tr>
-     <tr><td><div align="right"><a name="9"></a><a href="#9">9</a></div></td><td class="codeLine"><span class="comment">&nbsp;*/</span></td></tr>
-     <tr><td><div align="right"><a name="10"></a><a href="#10">10</a></div></td><td class="codeLine"><span class="keyword">function</span><span class="default">&nbsp;</span><span class="default">cora_autoloader</span><span class="keyword">(</span><span class="default">$class</span><span class="keyword">)</span><span class="default">&nbsp;</span><span class="keyword">{</span></td></tr>
-     <tr class="success popin" data-title="1 test covers line 11" data-content="&lt;ul&gt;&lt;li class=&quot;success&quot;&gt;bcrypt_test::test_get_hash_with_valid_salt_returns_valid_format&lt;/li&gt;&lt;/ul&gt;" data-placement="bottom" data-html="true"><td><div align="right"><a name="11"></a><a href="#11">11</a></div></td><td class="codeLine"><span class="default">&nbsp;&nbsp;</span><span class="default">$class_parts</span><span class="default">&nbsp;</span><span class="keyword">=</span><span class="default">&nbsp;</span><span class="default">explode</span><span class="keyword">(</span><span class="default">'\\'</span><span class="keyword">,</span><span class="default">&nbsp;</span><span class="default">$class</span><span class="keyword">)</span><span class="keyword">;</span></td></tr>
-     <tr class="success popin" data-title="1 test covers line 12" data-content="&lt;ul&gt;&lt;li class=&quot;success&quot;&gt;bcrypt_test::test_get_hash_with_valid_salt_returns_valid_format&lt;/li&gt;&lt;/ul&gt;" data-placement="bottom" data-html="true"><td><div align="right"><a name="12"></a><a href="#12">12</a></div></td><td class="codeLine"><span class="default">&nbsp;&nbsp;</span><span class="keyword">if</span><span class="keyword">(</span><span class="default">$class_parts</span><span class="keyword">[</span><span class="default">0</span><span class="keyword">]</span><span class="default">&nbsp;</span><span class="default">===</span><span class="default">&nbsp;</span><span class="default">'cora'</span><span class="keyword">)</span><span class="default">&nbsp;</span><span class="keyword">{</span></td></tr>
-     <tr class="success popin" data-title="1 test covers line 13" data-content="&lt;ul&gt;&lt;li class=&quot;success&quot;&gt;bcrypt_test::test_get_hash_with_valid_salt_returns_valid_format&lt;/li&gt;&lt;/ul&gt;" data-placement="bottom" data-html="true"><td><div align="right"><a name="13"></a><a href="#13">13</a></div></td><td class="codeLine"><span class="default">&nbsp;&nbsp;&nbsp;&nbsp;</span><span class="keyword">require</span><span class="default">&nbsp;</span><span class="default">'../'</span><span class="default">&nbsp;</span><span class="keyword">.</span><span class="default">&nbsp;</span><span class="default">str_replace</span><span class="keyword">(</span><span class="default">'\\'</span><span class="keyword">,</span><span class="default">&nbsp;</span><span class="default">'/'</span><span class="keyword">,</span><span class="default">&nbsp;</span><span class="default">$class</span><span class="keyword">)</span><span class="default">&nbsp;</span><span class="keyword">.</span><span class="default">&nbsp;</span><span class="default">'.php'</span><span class="keyword">;</span></td></tr>
-     <tr class="success popin" data-title="1 test covers line 14" data-content="&lt;ul&gt;&lt;li class=&quot;success&quot;&gt;bcrypt_test::test_get_hash_with_valid_salt_returns_valid_format&lt;/li&gt;&lt;/ul&gt;" data-placement="bottom" data-html="true"><td><div align="right"><a name="14"></a><a href="#14">14</a></div></td><td class="codeLine"><span class="default">&nbsp;&nbsp;</span><span class="keyword">}</span></td></tr>
-     <tr class="success popin" data-title="1 test covers line 15" data-content="&lt;ul&gt;&lt;li class=&quot;success&quot;&gt;bcrypt_test::test_get_hash_with_valid_salt_returns_valid_format&lt;/li&gt;&lt;/ul&gt;" data-placement="bottom" data-html="true"><td><div align="right"><a name="15"></a><a href="#15">15</a></div></td><td class="codeLine"><span class="keyword">}</span></td></tr>
-     <tr><td><div align="right"><a name="16"></a><a href="#16">16</a></div></td><td class="codeLine"><span class="default">spl_autoload_register</span><span class="keyword">(</span><span class="default">'cora_autoloader'</span><span class="keyword">)</span><span class="keyword">;</span></td></tr>
+     <tr><td><div align="right"><a name="7"></a><a href="#7">7</a></div></td><td class="codeLine"><span class="comment">&nbsp;*&nbsp;up&nbsp;to&nbsp;only&nbsp;bother&nbsp;with&nbsp;files&nbsp;in&nbsp;the&nbsp;Cora&nbsp;namespace.</span></td></tr>
+     <tr><td><div align="right"><a name="8"></a><a href="#8">8</a></div></td><td class="codeLine"><span class="comment">&nbsp;*/</span></td></tr>
+     <tr><td><div align="right"><a name="9"></a><a href="#9">9</a></div></td><td class="codeLine"><span class="keyword">function</span><span class="default">&nbsp;</span><span class="default">cora_autoloader</span><span class="keyword">(</span><span class="default">$class</span><span class="keyword">)</span><span class="default">&nbsp;</span><span class="keyword">{</span></td></tr>
+     <tr class="success popin" data-title="1 test covers line 10" data-content="&lt;ul&gt;&lt;li class=&quot;success&quot;&gt;bcrypt_test::test_get_hash_with_valid_salt_returns_valid_format&lt;/li&gt;&lt;/ul&gt;" data-placement="bottom" data-html="true"><td><div align="right"><a name="10"></a><a href="#10">10</a></div></td><td class="codeLine"><span class="default">&nbsp;&nbsp;</span><span class="default">$class_parts</span><span class="default">&nbsp;</span><span class="keyword">=</span><span class="default">&nbsp;</span><span class="default">explode</span><span class="keyword">(</span><span class="default">'\\'</span><span class="keyword">,</span><span class="default">&nbsp;</span><span class="default">$class</span><span class="keyword">)</span><span class="keyword">;</span></td></tr>
+     <tr class="success popin" data-title="1 test covers line 11" data-content="&lt;ul&gt;&lt;li class=&quot;success&quot;&gt;bcrypt_test::test_get_hash_with_valid_salt_returns_valid_format&lt;/li&gt;&lt;/ul&gt;" data-placement="bottom" data-html="true"><td><div align="right"><a name="11"></a><a href="#11">11</a></div></td><td class="codeLine"><span class="default">&nbsp;&nbsp;</span><span class="keyword">if</span><span class="keyword">(</span><span class="default">$class_parts</span><span class="keyword">[</span><span class="default">0</span><span class="keyword">]</span><span class="default">&nbsp;</span><span class="default">===</span><span class="default">&nbsp;</span><span class="default">'cora'</span><span class="keyword">)</span><span class="default">&nbsp;</span><span class="keyword">{</span></td></tr>
+     <tr class="success popin" data-title="1 test covers line 12" data-content="&lt;ul&gt;&lt;li class=&quot;success&quot;&gt;bcrypt_test::test_get_hash_with_valid_salt_returns_valid_format&lt;/li&gt;&lt;/ul&gt;" data-placement="bottom" data-html="true"><td><div align="right"><a name="12"></a><a href="#12">12</a></div></td><td class="codeLine"><span class="default">&nbsp;&nbsp;&nbsp;&nbsp;</span><span class="keyword">require</span><span class="default">&nbsp;</span><span class="default">'../'</span><span class="default">&nbsp;</span><span class="keyword">.</span><span class="default">&nbsp;</span><span class="default">str_replace</span><span class="keyword">(</span><span class="default">'\\'</span><span class="keyword">,</span><span class="default">&nbsp;</span><span class="default">'/'</span><span class="keyword">,</span><span class="default">&nbsp;</span><span class="default">$class</span><span class="keyword">)</span><span class="default">&nbsp;</span><span class="keyword">.</span><span class="default">&nbsp;</span><span class="default">'.php'</span><span class="keyword">;</span></td></tr>
+     <tr class="success popin" data-title="1 test covers line 13" data-content="&lt;ul&gt;&lt;li class=&quot;success&quot;&gt;bcrypt_test::test_get_hash_with_valid_salt_returns_valid_format&lt;/li&gt;&lt;/ul&gt;" data-placement="bottom" data-html="true"><td><div align="right"><a name="13"></a><a href="#13">13</a></div></td><td class="codeLine"><span class="default">&nbsp;&nbsp;</span><span class="keyword">}</span></td></tr>
+     <tr class="success popin" data-title="1 test covers line 14" data-content="&lt;ul&gt;&lt;li class=&quot;success&quot;&gt;bcrypt_test::test_get_hash_with_valid_salt_returns_valid_format&lt;/li&gt;&lt;/ul&gt;" data-placement="bottom" data-html="true"><td><div align="right"><a name="14"></a><a href="#14">14</a></div></td><td class="codeLine"><span class="keyword">}</span></td></tr>
+     <tr><td><div align="right"><a name="15"></a><a href="#15">15</a></div></td><td class="codeLine"><span class="default">spl_autoload_register</span><span class="keyword">(</span><span class="default">'cora_autoloader'</span><span class="keyword">)</span><span class="keyword">;</span></td></tr>
 
     </tbody>
    </table>
@@ -107,7 +106,7 @@
      <span class="warning"><strong>Dead Code</strong></span>
     </p>
     <p>
-     <small>Generated by <a href="http://github.com/sebastianbergmann/php-code-coverage" target="_top">PHP_CodeCoverage 1.2.12</a> using <a href="http://www.php.net/" target="_top">PHP 5.4.4-14+deb7u4</a> and <a href="http://phpunit.de/">PHPUnit 3.7.24</a> at Wed Sep 4 6:56:25 EDT 2013.</small>
+     <small>Generated by <a href="http://github.com/sebastianbergmann/php-code-coverage" target="_top">PHP_CodeCoverage 1.2.12</a> using <a href="http://www.php.net/" target="_top">PHP 5.4.6-1ubuntu1.3</a> and <a href="http://phpunit.de/">PHPUnit 3.7.24</a> at Thu Aug 29 7:11:04 EDT 2013.</small>
     </p>
    </footer>
   </div>

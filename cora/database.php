@@ -26,6 +26,7 @@ final class database extends \mysqli {
 
   /**
    * The singleton.
+   *
    * @var database
    */
   private static $instance;
@@ -218,10 +219,15 @@ final class database extends \mysqli {
    * @return string The escaped identifier.
    */
   public function escape_identifier($identifier) {
-    if(preg_match('/^\w+$/', $identifier) === true) {
+    if(preg_match('/^\w+$/', $identifier) === 1) {
       return '`' . $identifier . '`';
     }
     else {
+      $this->cora->set_error_extra_info(
+        array(
+          'identifier' => $identifier
+        )
+      );
       throw new \Exception('Query identifier is invalid.', 1204);
     }
   }
@@ -470,70 +476,6 @@ final class database extends \mysqli {
     $this->query($query);
     return $this->insert_id;
   }
-
-  /**
-   * Insert multiple rows into the specified table.
-   *
-   * @param string $table The table to insert into.
-   * @param array $attributes An array of items to insert.
-   * @throws \Exception If a multi-insert is attempted that does not have an
-   *     identical set of columns (regardless of order) across all items to
-   *     insert.
-   * @return int The primary key of the first inserted row.
-   */
-/* This is cool and all, but leaving it out until I figure out
- auditing and whether or not it will work properly with it */
-/*  public function multi_insert($table, $attributes) {
-
-    // Get a list of all keys that appear in all items to insert.
-    if(count($attributes) === 1) {
-      $attributes_to_set = array_keys($attributes[0]);
-    }
-    else {
-      $attributes_to_set = array_keys(
-        call_user_func_array('array_intersect_key', $attributes)
-      );
-    }
-
-    // Check each item to be inserted to make sure it does not have any extra
-    // keys set. At this point it will have AT LEAST the keys in
-    // $attributes_to_set because of the intersect above.
-    foreach($attributes as &$item) {
-      $diff = array_diff(array_keys($item), $attributes_to_set);
-      if(count($diff) !== 0) {
-        throw new \Exception('Must use the same keys across all items.', 1208);
-      }
-      else {
-        // If this item is valid to insert, replace it with a "sorted" version.
-        // It is possible to submit a valid set of items for inserting that have
-        // the keys out of order. This would mix columns up on the insert so
-        // everything has to be sorted beforehand.
-        $item_ordered = array();
-        foreach($attributes_to_set as $attribute) {
-          $item_ordered[] = $item[$attribute];
-        }
-        $item = $item_ordered;
-      }
-    }
-
-    // And now build and run the query
-    $columns = implode(',',
-      array_map(array($this, 'escape_identifier'), $attributes_to_set));
-
-    $values = array();
-    foreach($attributes as $item) {
-      $values[] = implode(',',
-        array_map(array($this, 'escape'), $item));
-    }
-
-    $query =
-      'insert into ' . $this->escape_identifier($table) . ' ' .
-      '(' . $columns . ') ' .
-      'values(' . implode('),(', $values) . ')';
-
-    $this->query($query);
-    return $this->insert_id;
-  }*/
 
   /**
    * Gets the number of queries that have been executed.
