@@ -153,6 +153,7 @@ final class cora {
 
   /**
    * The timestamp when processing of the API request started.
+   *
    * @var int
    */
   private $start_timestamp;
@@ -160,6 +161,7 @@ final class cora {
   /**
    * The original request passed to this object, usually $_REQUEST. Stored
    * right away so logging and error functions have access to it.
+   *
    * @var array
    */
   private $request;
@@ -167,6 +169,7 @@ final class cora {
   /**
    * A list of all of the API calls extracted from the request. This is stored
    * so that logging and error functions have access to it.
+   *
    * @var array
    */
   private $api_calls;
@@ -174,6 +177,7 @@ final class cora {
   /**
    * An array of the API responses. For single API calls, count() == 1, for
    * batch calls there will be one row per call.
+   *
    * @var array
    */
   private $response_data = array();
@@ -181,6 +185,7 @@ final class cora {
   /**
    * The actual response in array form. It is stored here so the shutdown
    * handler has access to it.
+   *
    * @var array
    */
   private $response;
@@ -198,6 +203,7 @@ final class cora {
    * work just fine. Note that if the class that the autoloader needs is
    * already loaded, the shutdown handler won't break. So it's usually not a
    * problem but this is a good thing to fix.
+   *
    * @var string
    */
   private $current_working_directory;
@@ -206,6 +212,7 @@ final class cora {
    * A list of the response times for each API call. This does not reflect the
    * response time for the entire request, nor does it include the time it
    * took for overhead like rate limit checking.
+   *
    * @var array
    */
   private $response_times = array();
@@ -214,6 +221,7 @@ final class cora {
    * A list of the query counts for each API call. This does not reflect the
    * query count for the entire request, nor does it include the queries for
    * overhead like rate limit checking.
+   *
    * @var array
    */
   private $response_query_counts = array();
@@ -222,6 +230,7 @@ final class cora {
    * A list of the query times for each API call. This does not reflect the
    * query time for the entire request, nor does it include the times for
    * overhead like rate limit checking.
+   *
    * @var array
    */
   private $response_query_times = array();
@@ -230,12 +239,14 @@ final class cora {
    * This stores the currently executing API call. If that API call were to
    * fail, I need to know which one I was running in order to propery log the
    * error.
+   *
    * @var array
    */
   private $current_api_call = null;
 
   /**
    * Database object.
+   *
    * @var database
    */
   private $database;
@@ -325,11 +336,9 @@ final class cora {
    *
    * @throws \Exception If the rate limit threshhold is reached.
    * @throws \Exception If SSL is required but not used.
+   * @throws \Exception If a resource is not provided.
+   * @throws \Exception If a method is not provided.
    * @throws \Exception If the requested method does not exist.
-   * @throws \Exception If this is a batch request and the batch data is not
-   * valid JSON
-   * @throws \Exception If this is a batch request and it exceeds the maximum
-   * number of api calls allowed in one batch.
    */
   public function process_request($request) {
     // Used to have this in the constructor, but the database uses this class
@@ -348,29 +357,11 @@ final class cora {
       throw new \Exception('Request must be sent over HTTPS.', 1006);
     }
 
-    // Build a list of API calls. For a single request, it's just the request.
-    // For batch requests, add each item in the batch parameter to this array.
-    $this->api_calls = array();
-    if(isset($request['batch']) === true) {
-      $batch = json_decode($request['batch'], true);
-      if($batch === false) {
-        throw new \Exception('Batch is not valid JSON.', 1012);
-      }
-      $batch_limit = $this->get_setting('batch_limit');
-      if($batch_limit !== null && count($batch) > $batch_limit) {
-        throw new \Exception('Batch limit exceeded.', 1013);
-      }
-      foreach($batch as $api_call) {
-        // Need to attach the API key onto each api_call
-        if(isset($request['api_key']) === true) {
-          $api_call['api_key'] = $request['api_key'];
-        }
-        $this->api_calls[] = $api_call;
-      }
-    }
-    else {
-      $this->api_calls[] = $request;
-    }
+    // Build a list of API calls.
+    $this->build_api_call_list($request);
+
+    // Check the API request for errors.
+    $this->check_api_request_for_errors();
 
     // Set the default headers as a catch-all. Most API calls won't touch these,
     // but it is possible for them to override headers as desired.
@@ -425,13 +416,85 @@ final class cora {
       $start_time = microtime(true);
       $start_query_count = $this->database->get_query_count();
       $start_query_time = $this->database->get_query_time();
-      $this->response_data[] = call_user_func_array(
+
+      if(isset($api_call['alias']) === true) {
+        $index = $api_call['alias'];
+      }
+      else {
+        $index = count($this->response_data);
+      }
+
+      $this->response_data[$index] = call_user_func_array(
         array($resource_instance, $api_call['method']),
         $arguments
       );
-      $this->response_times[] = (microtime(true) - $start_time);
-      $this->response_query_counts[] = $this->database->get_query_count() - $start_query_count;
-      $this->response_query_times[] = $this->database->get_query_time() - $start_query_time;
+
+      $this->response_times[$index] = (microtime(true) - $start_time);
+      $this->response_query_counts[$index] = $this->database->get_query_count() - $start_query_count;
+      $this->response_query_times[$index] = $this->database->get_query_time() - $start_query_time;
+    }
+  }
+
+  /**
+   * Build a list of API calls from the request. For a single request, it's
+   * just the request. For batch requests, add each item in the batch
+   * parameter to this array.
+   *
+   * @param array $request The original request.
+   *
+   * @throws \Exception If this is a batch request and the batch data is not
+   * valid JSON
+   * @throws \Exception If this is a batch request and it exceeds the maximum
+   * number of api calls allowed in one batch.
+   */
+  private function build_api_call_list($request) {
+    $this->api_calls = array();
+    if(isset($request['batch']) === true) {
+      $batch = json_decode($request['batch'], true);
+      if($batch === false) {
+        throw new \Exception('Batch is not valid JSON.', 1012);
+      }
+      $batch_limit = $this->get_setting('batch_limit');
+      if($batch_limit !== null && count($batch) > $batch_limit) {
+        throw new \Exception('Batch limit exceeded.', 1013);
+      }
+      foreach($batch as $api_call) {
+        // Need to attach the API key onto each api_call
+        if(isset($request['api_key']) === true) {
+          $api_call['api_key'] = $request['api_key'];
+        }
+        $this->api_calls[] = $api_call;
+      }
+    }
+    else {
+      $this->api_calls[] = $request;
+    }
+  }
+
+  /**
+   * Check the API request for various errors.
+   *
+   * @throws \Exception If something other than ALL or NO aliases are set.
+   * @throws \Exception If Any duplicate aliases are used.
+   */
+  private function check_api_request_for_errors() {
+    $aliases = array();
+    foreach($this->api_calls as $api_call) {
+      if(isset($api_call['alias']) === true) {
+        $aliases[] = $api_call['alias'];
+      }
+    }
+
+    // Check to make sure either all or none are set.
+    $number_aliases = count($aliases);
+    if(count($this->api_calls) !== $number_aliases && $number_aliases !== 0) {
+      throw new \Exception('All API calls must have an alias if at least one is set.', 9999);
+    }
+
+    // Check for duplicates.
+    $number_unique_aliases = count(array_unique($aliases));
+    if($number_aliases !== $number_unique_aliases) {
+      throw new \Exception('Duplicate alias on API call.', 9999);
     }
   }
 
@@ -583,7 +646,7 @@ final class cora {
 
     // Arguments are not strictly required. If a method requires them then you
     // will still get an error, but they are not required by the API.
-    if(isset($api_call['arguments'])) {
+    if(isset($api_call['arguments']) === true) {
       // All arguments are sent in the "arguments" key as JSON.
       $api_call_arguments = json_decode($api_call['arguments'], true);
 
@@ -831,7 +894,8 @@ final class cora {
             $this->response['data'] = $this->response_data;
           }
           else {
-            $this->response['data'] = $this->response_data[0];
+            // $this->response['data'] = $this->response_data[0];
+            $this->response['data'] = reset($this->response_data);
           }
 
           // If debugging, add the original request to the repsonse
@@ -849,7 +913,8 @@ final class cora {
         else {
           // For custom responses, just output whatever we got. Batch requests
           // can't get to this point since they are not allowed to be custom.
-          $this->response = $this->response_data[0];
+          // $this->response = $this->response_data[0];
+          $this->response = reset($this->response_data);
           $this->log();
 
           $this->output_headers();
@@ -986,14 +1051,21 @@ final class cora {
           $request_arguments = null;
         }
 
-        $response_time = $this->response_times[$i];
-        $response_query_count = $this->response_query_counts[$i];
-        $response_query_time = $this->response_query_times[$i];
+        if(isset($api_call['alias']) === true) {
+          $index = $api_call['alias'];
+        }
+        else {
+          $index = $i;
+        }
+
+        $response_time = $this->response_times[$index];
+        $response_query_count = $this->response_query_counts[$index];
+        $response_query_time = $this->response_query_times[$index];
 
         // The data could be an integer, an XML string, an array, etc, but let's
         // just always json_encode it to keep things simple and standard.
         if($this->content_type_is_loggable() === true) {
-          $response_data = substr(json_encode($this->response_data[$i]), 0, 16384);
+          $response_data = substr(json_encode($this->response_data[$index]), 0, 16384);
         }
         else {
           $response_data = null;
