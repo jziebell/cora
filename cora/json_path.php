@@ -30,11 +30,10 @@ final class json_path {
     // Fix path so it works with both dot and bracket notation.
     $json_path = str_replace(array('[', ']', '\'', '"'), array('.', '', '', ''), $json_path);
 
-    // Get the key array and alias.
+    // Split up the path into an array.
     $key_array = explode('.', $json_path);
-    $alias = array_shift($key_array);
 
-    return $this->extract_key($data[$alias], $key_array);
+    return $this->extract_key($data, $key_array);
   }
 
   /**
@@ -57,7 +56,7 @@ final class json_path {
     }
     else {
       if(array_key_exists($key, $data) === false) {
-        throw new \Exception('Invalid path string.', 1700);
+        throw new \Exception('Invalid path string.', 1800);
       }
       else {
         return $this->extract_key($data[$key], $key_array);
