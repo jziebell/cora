@@ -34,7 +34,7 @@ $cora->process_request($_REQUEST);
 
 /**
  * TODO: Things to document
- * > batch API + names/aliases
+ * > batch API + names/aliases + currying
  * > cora::set_headers() and the difference between custom and not custom responses
  * > how to use unicode (set meta tag, set up mysql tables, use proper encoding in response)
  */

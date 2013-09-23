@@ -488,13 +488,13 @@ final class cora {
     // Check to make sure either all or none are set.
     $number_aliases = count($aliases);
     if(count($this->api_calls) !== $number_aliases && $number_aliases !== 0) {
-      throw new \Exception('All API calls must have an alias if at least one is set.', 9999);
+      throw new \Exception('All API calls must have an alias if at least one is set.', 1017);
     }
 
     // Check for duplicates.
     $number_unique_aliases = count(array_unique($aliases));
     if($number_aliases !== $number_unique_aliases) {
-      throw new \Exception('Duplicate alias on API call.', 9999);
+      throw new \Exception('Duplicate alias on API call.', 1018);
     }
   }
 
@@ -656,7 +656,14 @@ final class cora {
 
       foreach($argument_keys as $argument_key) {
         if(isset($api_call_arguments[$argument_key]) === true) {
-          $arguments[] = $api_call_arguments[$argument_key];
+          $argument = $api_call_arguments[$argument_key];
+
+          // If this is a batch request, look for JSONPath arguments.
+          if(isset($this->request['batch']) === true) {
+            $argument = $this->evaluate_json_path_argument($argument);
+          }
+
+          $arguments[] = $argument;
         }
         else {
           // This is a bit confusing, but this is nice in that it allows for
@@ -673,6 +680,28 @@ final class cora {
       }
     }
     return $arguments;
+  }
+
+  /**
+   * Recursively check all values in an argument. If any of them are JSON
+   * path, evaluate them.
+   *
+   * @param mixed $argument The argument to check.
+   *
+   * @return mixed The argument with the evaluated path.
+   */
+  private function evaluate_json_path_argument($argument) {
+    if(is_array($argument) === true) {
+      foreach($argument as $key => $value) {
+        $argument[$key] = $this->evaluate_json_path_argument($value);
+      }
+    }
+    else if(preg_match('/^{=(.*)}$/', $argument, $matches) === 1) {
+      $json_path_resource = new json_path();
+      $json_path = $matches[1];
+      $argument = $json_path_resource->evaluate($this->response_data, $json_path);
+    }
+    return $argument;
   }
 
   /**
