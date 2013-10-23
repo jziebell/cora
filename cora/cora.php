@@ -451,7 +451,7 @@ final class cora {
     $this->api_calls = array();
     if(isset($request['batch']) === true) {
       $batch = json_decode($request['batch'], true);
-      if($batch === false) {
+      if($batch === null) {
         throw new \Exception('Batch is not valid JSON.', 1012);
       }
       $batch_limit = $this->get_setting('batch_limit');
@@ -650,7 +650,7 @@ final class cora {
       // All arguments are sent in the "arguments" key as JSON.
       $api_call_arguments = json_decode($api_call['arguments'], true);
 
-      if($api_call_arguments === false) {
+      if($api_call_arguments === null) {
         throw new \Exception('Arguments are not valid JSON.', 1011);
       }
 
