@@ -49,7 +49,7 @@ final class cora {
     // Default database name. If you have more than one database in your
     // application, you can set this to null and call $database->select_db() as
     // necessary.
-    'database_name' => 'cora2w',
+    'database_name' => 'cora2',
 
     // In general, set this to the domain your sessions should be active on and
     // leave out the www prefix. For example, if your application is at
@@ -846,8 +846,7 @@ final class cora {
           'error_line' => $error_line,
           'error_trace' => $error_trace,
           'error_extra_info' => $this->error_extra_info
-        ),
-        'request' => $this->request
+        )
       );
     }
     else {
@@ -925,11 +924,6 @@ final class cora {
           else {
             // $this->response['data'] = $this->response_data[0];
             $this->response['data'] = reset($this->response_data);
-          }
-
-          // If debugging, add the original request to the repsonse
-          if($this->get_setting('debug') === true) {
-            $this->response['request'] = $this->request;
           }
 
           // Log all of the API calls that were made.
