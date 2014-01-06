@@ -37,4 +37,5 @@ $cora->process_request($_REQUEST);
  * > batch API + names/aliases + currying
  * > cora::set_headers() and the difference between custom and not custom responses
  * > how to use unicode (set meta tag, set up mysql tables, use proper encoding in response)
+ * > removal of returning the 'request' from the response
  */

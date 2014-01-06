@@ -27,8 +27,7 @@ final class cora {
   private $settings = array(
     // Whether or not debugging is enabled. Debugging will produce additional
     // output in the API response, including data->error_file,
-    // data->error_line, data->error_trace, data->error_extra_info, and the
-    // original request.
+    // data->error_line, data->error_trace, and data->error_extra_info.
     'debug' => true,
 
     // Database host. Can be IP or hostname.
