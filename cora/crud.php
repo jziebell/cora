@@ -65,6 +65,13 @@ abstract class crud extends api {
    * key-indexed array.
    */
   protected function read_id($where_clause = array(), $columns = array()) {
+    // If no columns are specified to read, force the primary key column to be
+    // included. This will ensure that no error is thrown when the result of the
+    // query is converted into the ID array.
+    if(count($columns) > 0) {
+      $columns[] = $this->resource . '_id';
+    }
+
     $rows = $this->read($where_clause, $columns);
     $rows_id = array();
     foreach($rows as $row) {
