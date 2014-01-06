@@ -49,7 +49,7 @@ final class cora {
     // Default database name. If you have more than one database in your
     // application, you can set this to null and call $database->select_db() as
     // necessary.
-    'database_name' => 'cora',
+    'database_name' => 'cora2w',
 
     // In general, set this to the domain your sessions should be active on and
     // leave out the www prefix. For example, if your application is at

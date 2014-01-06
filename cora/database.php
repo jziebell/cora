@@ -91,7 +91,10 @@ final class database extends \mysqli {
 
     $database_name = $this->cora->get_setting('database_name');
     if($database_name !== null) {
-      $this->select_db($database_name);
+      $success = $this->select_db($database_name);
+      if($success === false) {
+        throw new \Exception('Could not select database.', 1208);
+      }
     }
   }
 
