@@ -127,7 +127,7 @@ final class cora {
       ),
       'non_session' => array(
         'test_crud' => array(
-          'read' => array('where_clause', 'columns'),
+          'read' => array('attributes', 'columns'),
           'get' => array('id', 'columns')
         ),
         'test_user' => array(

@@ -35,11 +35,11 @@ abstract class crud extends api {
 
   /**
    * Read items from the current resource according to the specified
-   * $where_clause. Only undeleted items are selected by default. This can be
+   * $attributes. Only undeleted items are selected by default. This can be
    * altered by manually specifying deleted=1 or deleted=array(0, 1) in
-   * $where_clause.
+   * $attributes.
    *
-   * @param array $where_clause An array of key value pairs to search by and
+   * @param array $attributes An array of key value pairs to search by and
    * can include arrays if you want to search in() something.
    * @param array $columns The columns from the resource to return. If not
    * specified, all columns are returned.
@@ -47,16 +47,16 @@ abstract class crud extends api {
    * @return array The requested items with the requested columns in a
    * 0-indexed array.
    */
-  protected function read($where_clause = array(), $columns = array()) {
-    $where_clause = $where_clause + array('deleted' => 0);
-    return $this->database->select($this->resource, $where_clause, $columns);
+  protected function read($attributes = array(), $columns = array()) {
+    $attributes = $attributes + array('deleted' => 0);
+    return $this->database->select($this->resource, $attributes, $columns);
   }
 
   /**
    * See comment on crud->select() for more detail. The return array is
    * indexed by the primary key of the resource items.
    *
-   * @param array $where_clause An array of key value pairs to search by and
+   * @param array $attributes An array of key value pairs to search by and
    * can include arrays if you want to search in() something.
    * @param array $columns The columns from the resource to return. If not
    * specified, all columns are returned.
@@ -64,7 +64,7 @@ abstract class crud extends api {
    * @return array The requested items with the requested colums in a primary-
    * key-indexed array.
    */
-  protected function read_id($where_clause = array(), $columns = array()) {
+  protected function read_id($attributes = array(), $columns = array()) {
     // If no columns are specified to read, force the primary key column to be
     // included. This will ensure that no error is thrown when the result of the
     // query is converted into the ID array.
@@ -72,7 +72,7 @@ abstract class crud extends api {
       $columns[] = $this->resource . '_id';
     }
 
-    $rows = $this->read($where_clause, $columns);
+    $rows = $this->read($attributes, $columns);
     $rows_id = array();
     foreach($rows as $row) {
       $rows_id[$row[$this->resource . '_id']] = $row;

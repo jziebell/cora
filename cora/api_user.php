@@ -43,13 +43,13 @@ class api_user extends crud {
   /**
    * Search for API users.
    *
-   * @param array $where_clause See parent.
+   * @param array $attributes See parent.
    * @param array $columns See parent.
    *
    * @return array
    */
-  public function read($where_clause = array(), $columns = array()) {
-    return parent::read($where_clause, $columns);
+  public function read($attributes = array(), $columns = array()) {
+    return parent::read($attributes, $columns);
   }
 
   /**

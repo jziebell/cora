@@ -334,7 +334,7 @@ final class database extends \mysqli {
    * Select some columns from some table with some where clause.
    *
    * @param string $table The table to select from
-   * @param array $where_clause An array of key value pairs to search by and
+   * @param array $attributes An array of key value pairs to search by and
    * can include arrays if you want to search in() something.
    * @param array $columns The columns to return. If not specified, all
    * columns are returned.
@@ -342,7 +342,7 @@ final class database extends \mysqli {
    * @return array An array of the database rows with the specified columns.
    * Even a single result will still be returned in an array of size 1.
    */
-  public function select($table, $where_clause = array(), $columns = array()) {
+  public function select($table, $attributes = array(), $columns = array()) {
     // Build the column listing.
     if(count($columns) === 0) {
       $columns = '*';
@@ -355,7 +355,7 @@ final class database extends \mysqli {
     }
 
     // Build the where clause.
-    if(count($where_clause) === 0) {
+    if(count($attributes) === 0) {
       $where = '';
     }
     else {
@@ -364,8 +364,8 @@ final class database extends \mysqli {
           ' and ',
           array_map(
             array($this, 'column_equals_value_where'),
-            array_keys($where_clause),
-            $where_clause
+            array_keys($attributes),
+            $attributes
           )
         );
     }
@@ -413,14 +413,14 @@ final class database extends \mysqli {
     );
 
     // Build the where clause
-    $where_clause = array($table . '_id' => $id);
+    $attributes = array($table . '_id' => $id);
     $where = 'where ' .
       implode(
         ' and ',
         array_map(
           array($this, 'column_equals_value_where'),
-          array_keys($where_clause),
-          $where_clause
+          array_keys($attributes),
+          $attributes
         )
       );
 
