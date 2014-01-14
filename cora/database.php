@@ -158,11 +158,12 @@ final class database extends \mysqli {
   }
 
   /**
-   * Rollback the current transaction.
+   * Rollback the current transaction. This is exposed because the exception
+   * handler needs to rollback the current transaction when it runs.
    *
    * @throws \Exception If the transaction fails to rollback.
    */
-  private function rollback_transaction() {
+  public function rollback_transaction() {
     if($this->transaction_started === true) {
       $this->transaction_started = false;
       $result = $this->query('rollback');

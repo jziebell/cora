@@ -26,7 +26,7 @@ abstract class crud extends api {
    *
    * @param array $attributes An array of attributes to set for this item
    *
-   * @return mixed The id of the inserted row or the row itself.
+   * @return mixed The id of the inserted row.
    */
   protected function create($attributes) {
     unset($attributes[$this->resource . '_id']);

@@ -18,8 +18,13 @@ set_time_limit(2);
 error_reporting(-1);
 ini_set('display_errors', '0');
 
-// Autoload classes as necessary so there are no includes/requires
-spl_autoload_register();
+// Autoload classes as necessary so there are no includes/requires. Note that
+// calling spl_autoload_register() with no arguments is actually faster than
+// this. The only reason I'm defining this function is because the default
+// autoloader lowercases everything which tends to break other libraries.
+spl_autoload_register(function($class) {
+  include str_replace('\\', '/', $class) . '.php';
+});
 
 // Construct cora and set up error handlers
 $cora = cora\cora::get_instance();

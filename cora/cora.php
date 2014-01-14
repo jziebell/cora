@@ -48,7 +48,7 @@ final class cora {
     // Default database name. If you have more than one database in your
     // application, you can set this to null and call $database->select_db() as
     // necessary.
-    'database_name' => 'cora2',
+    'database_name' => 'cora',
 
     // In general, set this to the domain your sessions should be active on and
     // leave out the www prefix. For example, if your application is at
@@ -835,6 +835,11 @@ final class cora {
    * @param array $error_trace The stack trace for the error.
    */
   public function set_error_response($error_message, $error_code, $error_file, $error_line, $error_trace) {
+    // There are a few places that call this function to set an error response,
+    // so this can't just be done in the exception handler alone. If an error
+    // occurs, rollback the current transaction.
+    $this->database->rollback_transaction();
+
     if($this->get_setting('debug') === true) {
       $this->response = array(
         'success' => false,
@@ -921,7 +926,6 @@ final class cora {
             $this->response['data'] = $this->response_data;
           }
           else {
-            // $this->response['data'] = $this->response_data[0];
             $this->response['data'] = reset($this->response_data);
           }
 
@@ -1016,7 +1020,7 @@ final class cora {
 
     // If exception. This is lenghty because I have to check to make sure
     // everything was set or else use null.
-    if(isset($this->response['data']['error_code']) === true) {
+    if(array_key_exists('error_code', $this->response['data']) === true) {
       if(isset($this->request['api_key']) === true) {
         $request_api_key = $this->request['api_key'];
       }
