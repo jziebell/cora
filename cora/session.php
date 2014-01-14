@@ -51,7 +51,7 @@ abstract class session {
     $external_id_escaped = $database->escape($external_id);
     $created_by_escaped = $database->escape($_SERVER['REMOTE_ADDR']);
     $last_used_by_escaped = $created_by_escaped;
-    
+
     $table = $this->get_table();
     $table_escaped = $database->escape_identifier($table);
 
@@ -91,8 +91,8 @@ abstract class session {
       }
     }
 
-    self::set_cookie($table . '_session_key', $session_key, $expire);
-    self::set_cookie($table . '_external_id', $external_id, $expire);
+    $this->set_cookie($table . '_session_key', $session_key, $expire);
+    $this->set_cookie($table . '_external_id', $external_id, $expire);
 
     $this->session_key = $session_key;
     $this->external_id = $external_id;
@@ -104,13 +104,13 @@ abstract class session {
    * Sets a cookie. This method is not public because cookies should generally
    * be used sparingly to avoid adding state to your application. Cora sets two
    * cookie values to identify who you are and that's it.
-   * 
+   *
    * @param string $name The name of the cookie.
    * @param mixed $value The value of the cookie.
    * @throws \Exception If The cookie fails to set.
    * @return null
    */
-  private static function set_cookie($name, $value, $expire) {
+  private function set_cookie($name, $value, $expire) {
     $path = ''; // The current directory that the cookie is being set in.
     $secure = $this->cora->get_setting('force_ssl');
     $httponly = true; // Only allow access to the cookie from the server.
@@ -183,11 +183,11 @@ abstract class session {
         `deleted` = 0 and
         `session_key` = ' . $session_key_escaped . ' and
         (
-          `timeout` is null or 
+          `timeout` is null or
           `last_used_at` > date_sub(now(), interval `timeout` second)
         ) and
         (
-          `life` is null or 
+          `life` is null or
           `created_at` > date_sub(now(), interval `life` second)
         )
     ';
@@ -207,7 +207,7 @@ abstract class session {
       preg_match_all('/Rows matched: (\d+)/', $database->info, $matches);
       if(isset($matches[1][0]) && $matches[1][0] === '1') {
         $this->session_key = $session_key;
-        $this->external_id = $external_id;        
+        $this->external_id = $external_id;
         return true;
       }
       else {
@@ -249,7 +249,7 @@ abstract class session {
 
   /**
    * Look at the class that extended this class and use that as the table name.
-   * 
+   *
    * @return string The table name.
    */
   private function get_table() {
@@ -263,7 +263,7 @@ abstract class session {
    *
    * @return string The generated session key.
    */
-  private static function generate_session_key() {
+  private function generate_session_key() {
     return strtolower(sha1(uniqid(mt_rand(), true)));
   }
 

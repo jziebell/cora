@@ -23,6 +23,7 @@ final class api_user_session extends session {
    * anything.
    */
   private function __construct() {
+    $this->cora = cora::get_instance();
   }
 
   /**
