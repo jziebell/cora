@@ -8,13 +8,13 @@
  * @author Jon Ziebell
  */
 
-// Compress output
+// Compress output.
 ob_start('ob_gzhandler');
 
-// Set a reasonable time limit
-set_time_limit(2);
+// Set a reasonable time limit.
+set_time_limit(5);
 
-// Turn on all error reporting but disable displaying errors
+// Turn on all error reporting but disable displaying errors.
 error_reporting(-1);
 ini_set('display_errors', '0');
 
@@ -26,12 +26,12 @@ spl_autoload_register(function($class) {
   include str_replace('\\', '/', $class) . '.php';
 });
 
-// Construct cora and set up error handlers
+// Construct cora and set up error handlers.
 $cora = cora\cora::get_instance();
 set_error_handler(array($cora, 'error_handler'));
 set_exception_handler(array($cora, 'exception_handler'));
 
-// The shutdown handler will output the response
+// The shutdown handler will output the response.
 register_shutdown_function(array($cora, 'shutdown_handler'));
 
 // Go!

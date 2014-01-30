@@ -22,7 +22,7 @@ class api_user extends crud {
    * @return int
    */
   public function create($attributes) {
-    if($this->cora->get_setting('enable_api_user_creation') === false) {
+    if($this->setting->get('enable_api_user_creation') === false) {
       throw new \Exception('API user creation is disabled.', 1500);
     }
     if(isset($attributes['username']) === false) {

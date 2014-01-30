@@ -42,7 +42,7 @@ final class bcrypt {
    * @param string $password The plaintext password.
    * @param string $hashed_password The hashed password you are comparing to.
    *
-   * @return boolean True if the passwords match, false if not.
+   * @return bool True if the passwords match, false if not.
    */
   public function compare($password, $hashed_password) {
     $salt = substr($hashed_password, 0, 29) . '$';

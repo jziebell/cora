@@ -32,6 +32,13 @@ abstract class api {
   protected $session;
 
   /**
+   * Setting object.
+   *
+   * @var session
+   */
+  protected $setting;
+
+  /**
    * Cora object.
    *
    * @var session
@@ -51,6 +58,7 @@ abstract class api {
     $this->resource = end($class_parts);
     $this->database = database::get_instance();
     $this->cora = cora::get_instance();
+    $this->setting = setting::get_instance();
 
     // Set the proper session variable. This is weird but necessary since Cora
     // supports the ability to log in to manage your API key as well as the

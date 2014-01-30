@@ -21,27 +21,34 @@ abstract class session {
   private $external_id = null;
 
   /**
-   * Request a session. This method sets a cookie and returns the session key.
-   * Use the following table to determine when the local cookie will be set to
-   * expire.
+   * Request a session. This method sets a couple cookies and returns the
+   * session key. By default, all cookies except those set in
+   * $additional_cookie_values are marked as httponly, which means only the
+   * server can access them. Use the following table to determine when the
+   * local cookie will be set to expire.
    *
-   *  timeout | life | expire
+   * timeout | life | expire
    * -------------------------------
-   *  null    | null | 2038
-   *  null    | set  | time() + life
-   *  set     | null | 0
-   *  set     | set  | time() + life
+   * null    | null | 2038
+   * null    | set  | time() + life
+   * set     | null | 0
+   * set     | set  | time() + life
    *
-   * @param int $timeout How long, in seconds, until the session expires due to
-   *     inactivity. Set to null for no timeout.
+   * @param int $timeout How long, in seconds, until the session expires due
+   * to inactivity. Set to null for no timeout.
    * @param int $life How long, in seconds, until the session expires. Set to
-   *     null for no expiration.
+   * null for no expiration.
    * @param int $external_id An optional external integer pointer to another
-   *     table. This will most often be user.user_id, but could be something
-   *     like person.person_id or player.player_id.
+   * table. This will most often be user.user_id, but could be something like
+   * person.person_id or player.player_id.
+   * @param array $additional_cookie_values Set additional values in the
+   * cookie by setting this value. Doing this is generally discouraged as
+   * cookies add state to the application, but something like a username for a
+   * "remember me" checkbox is reasonable.
+   *
    * @return string The generated session key.
    */
-  public function request($timeout, $life, $external_id = null) {
+  public function request($timeout, $life, $external_id = null, $additional_cookie_values = null) {
     $database = database::get_instance();
     $session_key = $this->generate_session_key();
 
@@ -91,8 +98,15 @@ abstract class session {
       }
     }
 
+    // Set all of the necessary cookies. Both *_session_key and *_external_id are
+    // read every API request and made available to the API.
     $this->set_cookie($table . '_session_key', $session_key, $expire);
     $this->set_cookie($table . '_external_id', $external_id, $expire);
+    if(isset($additional_cookie_values) === true) {
+      foreach($additional_cookie_values as $key => $value) {
+        $this->set_cookie($key, $value, $expire, false);
+      }
+    }
 
     $this->session_key = $session_key;
     $this->external_id = $external_id;
@@ -101,20 +115,24 @@ abstract class session {
   }
 
   /**
-   * Sets a cookie. This method is not public because cookies should generally
-   * be used sparingly to avoid adding state to your application. Cora sets two
-   * cookie values to identify who you are and that's it.
+   * Sets a cookie. If you want to set custom cookies, use the
+   * $additional_cookie_valeus argument on $session->create().
    *
    * @param string $name The name of the cookie.
    * @param mixed $value The value of the cookie.
+   * @param int $expire When the cookie should expire.
+   * @param bool $httponly True if the cookie should only be accessible on the
+   * server.
+   *
    * @throws \Exception If The cookie fails to set.
+   *
    * @return null
    */
-  private function set_cookie($name, $value, $expire) {
-    $path = ''; // The current directory that the cookie is being set in.
-    $secure = $this->cora->get_setting('force_ssl');
-    $httponly = true; // Only allow access to the cookie from the server.
-    $domain = $this->cora->get_setting('cookie_domain');
+  private function set_cookie($name, $value, $expire, $httponly = true) {
+    $this->setting = setting::get_instance();
+    $path = '/'; // The current directory that the cookie is being set in.
+    $secure = $this->setting->get('force_ssl');
+    $domain = $this->setting->get('cookie_domain');
     if($domain === null) { // See setting documentation for more info.
       $domain = '';
     }
@@ -225,8 +243,9 @@ abstract class session {
    * only admins to do that.
    *
    * @param string $session_key The session key of the session to delete.
-   * @return bool True if it was successfully deleted. Could return false for a
-   *     non-existent session key or if it was already deleted.
+   *
+   * @return bool True if it was successfully deleted. Could return false for
+   * a non-existent session key or if it was already deleted.
    */
   public function delete($session_key = null) {
     $database = database::get_instance();
@@ -265,6 +284,16 @@ abstract class session {
    */
   private function generate_session_key() {
     return strtolower(sha1(uniqid(mt_rand(), true)));
+  }
+
+  /**
+   * Get the external_id on this session. Useful for getting things like the
+   * user_id for the currently logged in user.
+   *
+   * @return int The current external_id.
+   */
+  public function get_external_id() {
+    return $this->external_id;
   }
 
 }

@@ -61,6 +61,13 @@ final class database extends \mysqli {
   private $cora;
 
   /**
+   * The setting object.
+   *
+   * @var setting
+   */
+  private $setting;
+
+  /**
    * Create the mysql object used for the current API call and start a
    * transaction. The same transaction is used for all queries on this
    * connection, even in the case of a multi-api call. The transaction is
@@ -73,11 +80,12 @@ final class database extends \mysqli {
    */
   private function __construct() {
     $this->cora = cora::get_instance();
+    $this->setting = setting::get_instance();
 
     parent::__construct(
-      $this->cora->get_setting('database_host'),
-      $this->cora->get_setting('database_username'),
-      $this->cora->get_setting('database_password')
+      $this->setting->get('database_host'),
+      $this->setting->get('database_username'),
+      $this->setting->get('database_password')
     );
 
     if($this->connect_error !== null) {
@@ -89,10 +97,16 @@ final class database extends \mysqli {
       throw new \Exception('Could not connect to database.', 1200);
     }
 
-    $database_name = $this->cora->get_setting('database_name');
+    $database_name = $this->setting->get('database_name');
     if($database_name !== null) {
       $success = $this->select_db($database_name);
       if($success === false) {
+
+        $this->cora->set_error_extra_info(
+          array(
+            'database_error' => $this->error
+          )
+        );
         throw new \Exception('Could not select database.', 1208);
       }
     }
