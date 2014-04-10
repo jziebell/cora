@@ -20,9 +20,7 @@ namespace cora;
  * $force_ssl
  * $requests_per_minute
  * $batch_limit
- * $enable_api_user_creation
- * $enable_api_user_ip_filtering
- * $custom_map
+ * $api_call_map
  *
  * @author Jon Ziebell
  */
@@ -131,28 +129,11 @@ final class setting {
     // and bog down the API.
     'batch_limit' => 10,
 
-    // Whether or not API user creation is enabled. If set to true, the required
-    // API methods to create new API users will be opened up. There are also a
-    // handful of API methods that are always available to provide things like
-    // statistics for API users. These can only be called when that API user is
-    // logged in.
-    'enable_api_user_creation' => true,
-
-    // If set to true, allow API users to specify one or more IP addresses that
-    // their API key can be used from. This setting doesn't actually matter that
-    // much since there are no limitations (rate limiting or quotas) on API
-    // usage by API key; it's all done by IP address. Regardless, this feature
-    // is available if the user wants to ensure that nobody else is using their
-    // key.
-    //
-    // Enabling this feature requires an additional database query per request.
-    'enable_api_user_ip_filtering' => false,
-
     // API methods are all private by default. Add them here to expose them. To
     // require a valid session when making an API call (user logged in), put
     // your call in the 'session' key. Methods added to the 'non_session' key
     // can be called without being logged in.
-    'custom_map' => array(
+    'api_call_map' => array(
       'session' => array(
       ),
       'non_session' => array(

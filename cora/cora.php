@@ -123,28 +123,6 @@ final class cora {
   private $setting;
 
   /**
-   * This is a hardcoded list of API methods specific to Cora (mostly for the
-   * creation/management of API users).
-   * @var array
-   */
-  private $cora_map = array(
-    'session' => array(
-      'cora\api_user' => array(
-        'log_out' => array(),
-        'regenerate_api_key' => array(),
-        'get_statistics' => array(),
-        'delete' => array()
-      )
-    ),
-    'non_session' => array(
-      'cora\api_user' => array(
-        'log_in' => array('username', 'password', 'remember_me'),
-        'create' => array('attributes')
-      )
-    )
-  );
-
-  /**
    * The headers to output in the shutdown handler.
    *
    * @var array
@@ -212,17 +190,17 @@ final class cora {
    * @throws \Exception If the requested method does not exist.
    */
   public function process_request($request) {
-    // Used to have this in the constructor, but the database uses this class
-    // which causes a dependency loop in the constructors.
-    $this->database = database::get_instance();
+    // This is necessary in order for the shutdown handler/log function to have
+    // access to this data, but it's not used anywhere else.
+    $this->request = $request;
 
     // Setting class for getting settings. Anything that extends cora\api gets
     // this automatically.
     $this->setting = setting::get_instance();
 
-    // This is necessary in order for the shutdown handler/log function to have
-    // access to this data, but it's not used anywhere else.
-    $this->request = $request;
+    // Used to have this in the constructor, but the database uses this class
+    // which causes a dependency loop in the constructors.
+    $this->database = database::get_instance();
 
     // A couple quick error checks
     if($this->is_over_rate_limit() === true) {
@@ -257,11 +235,10 @@ final class cora {
       }
 
       // Sets $call_type to 'public' or 'private'
-      $call_map = $this->get_api_call_map($api_call);
-      $call_type = $this->get_api_call_type($api_call, $call_map);
+      $call_type = $this->get_api_call_type($api_call);
 
       // Throw exceptions if data was missing or incorrect.
-      $this->check_api_call_for_errors($api_call, $call_map, $call_type);
+      $this->check_api_call_for_errors($api_call, $call_type);
 
       // If the resource doesn't exist, spl_autoload_register() will throw a
       // fatal error. The shutdown handler will "catch" it. It is not possible
@@ -273,19 +250,11 @@ final class cora {
         throw new \Exception('Method does not exist.', 1009);
       }
 
-      if($call_map === 'custom') {
-        $custom_map = $this->setting->get('custom_map');
-        $arguments = $this->get_arguments(
-          $api_call,
-          $custom_map[$call_type][$api_call['resource']][$api_call['method']]
-        );
-      }
-      else if($call_map === 'cora') {
-        $arguments = $this->get_arguments(
-          $api_call,
-          $this->cora_map[$call_type][$api_call['resource']][$api_call['method']]
-        );
-      }
+      $api_call_map = $this->setting->get('api_call_map');
+      $arguments = $this->get_arguments(
+        $api_call,
+        $api_call_map[$call_type][$api_call['resource']][$api_call['method']]
+      );
 
       // Process the request and save some statistics.
       $start_time = microtime(true);
@@ -377,7 +346,6 @@ final class cora {
    * Check to see if there were any obvious errors in the API request.
    *
    * @param array $call The API call.
-   * @param string $call_map The map this call is part of.
    * @param string $call_type The type this call is.
    *
    * @throws \Exception If the API key was not specified.
@@ -387,8 +355,8 @@ final class cora {
    * @throws \Exception If a private method was called without a valid
    * session.
    */
-  private function check_api_call_for_errors($call, $call_map, $call_type) {
-    if($call['api_key'] === null) {
+  private function check_api_call_for_errors($call, $call_type) {
+    if(isset($call['api_key']) === false) {
       throw new \Exception('API Key is required.', 1000);
     }
 
@@ -401,56 +369,17 @@ final class cora {
     // Get the appropriate session object. This has to be done always because
     // the session must be available even for non-session requests in the case
     // of something like logging in.
-    switch($call_map) {
-      case 'custom':
-        $session = api_session::get_instance();
-      break;
-      case 'cora':
-        $session = api_user_session::get_instance();
-      break;
-    }
+    $session = api_session::get_instance();
+
 
     // If the request requires a session, make sure it's valid. At the very
     // least, attempt to touch the session anyways. This will make
     // get_external_id return appropriately for non-session API calls.
     $session_is_valid = $session->touch();
     if($call_type === 'session') {
-      if($call_map === 'custom') {
-        if($session_is_valid === false) {
-          throw new \Exception('API session is expired.', 1004);
-        }
+      if($session_is_valid === false) {
+        throw new \Exception('API session is expired.', 1004);
       }
-      else if($call_map === 'cora') {
-        if($session_is_valid === false) {
-          throw new \Exception('API user session is expired.', 1010);
-        }
-      }
-    }
-  }
-
-  /**
-   * Returns 'custom' or 'cora' depending on where the API method is located
-   * at. Custom methods will override Cora methods, although there should
-   * never be any overlap in these anyways.
-   *
-   * @param array $api_call The API call to map.
-   *
-   * @throws \Exception If the resource was not found in either map.
-   *
-   * @return string The map.
-   */
-  private function get_api_call_map($api_call) {
-    $custom_map = $this->setting->get('custom_map');
-    if(isset($custom_map['session'][$api_call['resource']]) === true
-    || isset($custom_map['non_session'][$api_call['resource']]) === true) {
-      return 'custom';
-    }
-    else if(isset($this->cora_map['session'][$api_call['resource']]) === true
-    || isset($this->cora_map['non_session'][$api_call['resource']]) === true) {
-      return 'cora';
-    }
-    else {
-      throw new \Exception('Requested resource is not mapped.', 1007);
     }
   }
 
@@ -459,19 +388,13 @@ final class cora {
    * located at. Session methods require a valid session in order to execute.
    *
    * @param array $api_call The API call to get the type for.
-   * @param string $call_map The map this API call is a member of.
    *
    * @throws \Exception If the method was not found in the map.
    *
    * @return string The type.
    */
-  private function get_api_call_type($api_call, $call_map) {
-    if($call_map === 'cora') {
-      $map = $this->cora_map;
-    }
-    else if($call_map === 'custom') {
-      $map = $this->setting->get('custom_map');
-    }
+  private function get_api_call_type($api_call) {
+    $map = $this->setting->get('api_call_map');
 
     if(isset($map['session'][$api_call['resource']][$api_call['method']]) === true) {
       return 'session';
@@ -703,31 +626,23 @@ final class cora {
   public function set_error_response($error_message, $error_code, $error_file, $error_line, $error_trace) {
     // There are a few places that call this function to set an error response,
     // so this can't just be done in the exception handler alone. If an error
-    // occurs, rollback the current transaction.
-    $this->database->rollback_transaction();
+    // occurs, rollback the current transaction. Also only attempt to roll back
+    // the transaction if the database was successfully created/connected to.
+    if($this->database !== null) {
+      $this->database->rollback_transaction();
+    }
 
-    if($this->setting->get('debug') === true) {
-      $this->response = array(
-        'success' => false,
-        'data' => array(
-          'error_message' => $error_message,
-          'error_code' => $error_code,
-          'error_file' => $error_file,
-          'error_line' => $error_line,
-          'error_trace' => $error_trace,
-          'error_extra_info' => $this->error_extra_info
-        )
-      );
-    }
-    else {
-      $this->response = array(
-        'success' => false,
-        'data' => array(
-          'error_message' => $error_message,
-          'error_code' => $error_code
-        )
-      );
-    }
+    $this->response = array(
+      'success' => false,
+      'data' => array(
+        'error_message' => $error_message,
+        'error_code' => $error_code,
+        'error_file' => $error_file,
+        'error_line' => $error_line,
+        'error_trace' => $error_trace,
+        'error_extra_info' => $this->error_extra_info
+      )
+    );
   }
 
   /**
@@ -779,7 +694,7 @@ final class cora {
         // Override whatever headers might have already been set.
         $this->set_default_headers();
         $this->output_headers();
-        die(json_encode($this->response));
+        die($this->get_json_response());
       }
       else {
         // If we got here, no errors have occurred.
@@ -801,7 +716,7 @@ final class cora {
 
           // Output the response
           $this->output_headers();
-          die(json_encode($this->response));
+          die($this->get_json_response());
         }
         else {
           // For custom responses, just output whatever we got. Batch requests
@@ -825,8 +740,26 @@ final class cora {
       );
       $this->set_default_headers();
       $this->output_headers();
-      die(json_encode($this->response));
+      die($this->get_json_response());
     }
+  }
+
+  /**
+   * Gets the json_encoded response. This is called from the shutdown handler
+   * and removes debug information if debugging is disabled and then
+   * json_encodes the data.
+   *
+   * @return string The JSON encoded response.
+   */
+  private function get_json_response() {
+    $response = $this->response;
+    if($this->setting->get('debug') === false && $response['success'] === false) {
+      unset($response['data']['error_file']);
+      unset($response['data']['error_line']);
+      unset($response['data']['error_trace']);
+      unset($response['data']['error_extra_info']);
+    }
+    return json_encode($response);
   }
 
   /**
@@ -920,9 +853,9 @@ final class cora {
           'request_api_key'       =>  $request_api_key,
           'request_resource'      =>  $request_resource,
           'request_method'        =>  $request_method,
-          'request_arguments'     =>  $request_arguments,
+          'request_arguments'     =>  preg_replace('/"(password)":".*"/', '"$1":"[removed]"', $request_arguments),
           'response_error_code'   =>  $response_error_code,
-          'response_data'         =>  $response_data,
+          'response_data'         =>  preg_replace('/"(password)":".*"/', '"$1":"[removed]"', $response_data),
           'response_time'         =>  $response_time,
           'response_query_count'  =>  $response_query_count,
           'response_query_time'   =>  $response_query_time
@@ -969,9 +902,9 @@ final class cora {
             'request_api_key'       =>  $request_api_key,
             'request_resource'      =>  $request_resource,
             'request_method'        =>  $request_method,
-            'request_arguments'     =>  $request_arguments,
+            'request_arguments'     =>  preg_replace('/"(password)":".*"/', '"$1":"[removed]"', $request_arguments),
             'response_error_code'   =>  $response_error_code,
-            'response_data'         =>  $response_data,
+            'response_data'         =>  preg_replace('/"(password)":".*"/', '"$1":"[removed]"', $response_data),
             'response_time'         =>  $response_time,
             'response_query_count'  =>  $response_query_count,
             'response_query_time'   =>  $response_query_time

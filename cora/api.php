@@ -27,21 +27,21 @@ abstract class api {
   /**
    * Session object.
    *
-   * @var session
+   * @var api_session
    */
-  protected $session;
+  protected $api_session;
 
   /**
    * Setting object.
    *
-   * @var session
+   * @var setting
    */
   protected $setting;
 
   /**
    * Cora object.
    *
-   * @var session
+   * @var cora
    */
   protected $cora;
 
@@ -59,27 +59,23 @@ abstract class api {
     $this->database = database::get_instance();
     $this->cora = cora::get_instance();
     $this->setting = setting::get_instance();
+    $this->api_session = api_session::get_instance();
+  }
 
-    // Set the proper session variable. This is weird but necessary since Cora
-    // supports the ability to log in to manage your API key as well as the
-    // ability to log in generically. Cora will instantiate one of these
-    // depending on what the request was.
-    if(api_session::has_instance() === true) {
-      $this->session = api_session::get_instance();
-    }
-    else if(api_user_session::has_instance() === true) {
-      $this->session = api_user_session::get_instance();
-    }
-
-
-    // TODO: can't check this because api_log extends crud which extends api and
-    // it is created BEFORE the session is. I could move stuff around but then
-    // rate limiting happens way after it should.
-
-
-    // else {
-    //   throw new \Exception('Session object not created.' . $this->resource, 6000);
-    // }
+  /**
+   * Shortcut method for doing API calls within the API. This will create an
+   * instance of the resource you want and call the method you want with the
+   * arguments you want.
+   *
+   * @param string $resource The resource to use.
+   * @param string $method The method to call.
+   * @param array $arguments The arguments to send.
+   *
+   * @return mixed
+   */
+  public function api($resource, $method, $arguments = array()) {
+    $resource_instance = new $resource();
+    return call_user_func_array(array($resource_instance, $method), $arguments);
   }
 
 }

@@ -28,7 +28,7 @@ abstract class crud extends api {
    *
    * @return mixed The id of the inserted row.
    */
-  protected function create($attributes) {
+  public function create($attributes) {
     unset($attributes[$this->resource . '_id']);
     return $this->database->insert($this->resource, $attributes);
   }
@@ -47,7 +47,7 @@ abstract class crud extends api {
    * @return array The requested items with the requested columns in a
    * 0-indexed array.
    */
-  protected function read($attributes = array(), $columns = array()) {
+  public function read($attributes = array(), $columns = array()) {
     $attributes = $attributes + array('deleted' => 0);
     return $this->database->select($this->resource, $attributes, $columns);
   }
@@ -64,7 +64,7 @@ abstract class crud extends api {
    * @return array The requested items with the requested colums in a primary-
    * key-indexed array.
    */
-  protected function read_id($attributes = array(), $columns = array()) {
+  public function read_id($attributes = array(), $columns = array()) {
     // If no columns are specified to read, force the primary key column to be
     // included. This will ensure that no error is thrown when the result of the
     // query is converted into the ID array.
@@ -75,7 +75,10 @@ abstract class crud extends api {
     $rows = $this->read($attributes, $columns);
     $rows_id = array();
     foreach($rows as $row) {
-      $rows_id[$row[$this->resource . '_id']] = $row;
+      // Remove the *_id column and add in the row.
+      $id = $row[$this->resource . '_id'];
+      unset($row[$this->resource . '_id']);
+      $rows_id[$id] = $row;
     }
     return $rows_id;
   }
@@ -93,7 +96,7 @@ abstract class crud extends api {
    *
    * @throws \Exception If the item does not exist.
    */
-  protected function get($id, $columns = array()) {
+  public function get($id, $columns = array()) {
     $item = $this->read(
       array(
         $this->resource . '_id' => $id,
@@ -118,7 +121,7 @@ abstract class crud extends api {
    *
    * @return int The number of affected rows.
    */
-  protected function update($id, $attributes) {
+  public function update($id, $attributes) {
     unset($attributes[$this->resource . '_id']);
     return $this->database->update($this->resource, $id, $attributes);
   }
@@ -134,7 +137,7 @@ abstract class crud extends api {
    * already deleted or not found, this value will be 0. Otherwise it will be
    * 1.
    */
-  protected function delete($id) {
+  public function delete($id) {
     return $this->update($id, array('deleted' => 1));
   }
 
@@ -147,7 +150,7 @@ abstract class crud extends api {
    * @return int The number of rows affected by the undelete. If the item is
    * not deleted or not found, this value will be 0. Otherwise it will be 1.
    */
-  protected function undelete($id) {
+  public function undelete($id) {
     return $this->update($id, array('deleted' => 0));
   }
 
@@ -163,7 +166,7 @@ abstract class crud extends api {
    * already deleted or not found, this value will be 0. Otherwise it will be
    * 1.
    */
-  protected function hard_delete($id) {
+  public function hard_delete($id) {
     return $this->database->hard_delete($this->resource, $id);
   }
 

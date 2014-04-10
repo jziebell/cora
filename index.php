@@ -26,6 +26,17 @@ spl_autoload_register(function($class) {
   include str_replace('\\', '/', $class) . '.php';
 });
 
+// Very useful helper function.
+if(function_exists('array_pluck') === false) {
+  function array_pluck($key, $array) {
+    $s = array();
+    foreach($array as $i => $v) {
+      $s[] = $v[$key];
+    }
+    return $s;
+  }
+}
+
 // Construct cora and set up error handlers.
 $cora = cora\cora::get_instance();
 set_error_handler(array($cora, 'error_handler'));
