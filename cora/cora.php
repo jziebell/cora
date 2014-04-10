@@ -185,6 +185,9 @@ final class cora {
    *
    * @throws \Exception If the rate limit threshhold is reached.
    * @throws \Exception If SSL is required but not used.
+   * @throws \Exception If the API key is not provided.
+   * @throws \Exception If the API key is invalid.
+   * @throws \Exception If the session is expired.
    * @throws \Exception If a resource is not provided.
    * @throws \Exception If a method is not provided.
    * @throws \Exception If the requested method does not exist.
@@ -210,6 +213,15 @@ final class cora {
       throw new \Exception('Request must be sent over HTTPS.', 1006);
     }
 
+    // Make sure the API key that was sent is present and valid.
+    if(isset($request['api_key']) === false) {
+      throw new \Exception('API Key is required.', 1000);
+    }
+    $api_user_resource = new api_user();
+    if($api_user_resource->is_valid_api_key($request['api_key']) === false) {
+      throw new \Exception('Invalid API key.', 1003);
+    }
+
     // Build a list of API calls.
     $this->build_api_call_list($request);
 
@@ -219,6 +231,11 @@ final class cora {
     // Set the default headers as a catch-all. Most API calls won't touch these,
     // but it is possible for them to override headers as desired.
     $this->set_default_headers();
+
+    // Get this every time. It's only used for session API calls. Non-session
+    // API calls don't bother with this.
+    $api_session = api_session::get_instance();
+    $session_is_valid = $api_session->touch();
 
     // Process each request.
     foreach($this->api_calls as $api_call) {
@@ -237,8 +254,12 @@ final class cora {
       // Sets $call_type to 'public' or 'private'
       $call_type = $this->get_api_call_type($api_call);
 
-      // Throw exceptions if data was missing or incorrect.
-      $this->check_api_call_for_errors($api_call, $call_type);
+      // If the request requires a session, make sure it's valid.
+      if($call_type === 'session') {
+        if($session_is_valid === false) {
+          throw new \Exception('API session is expired.', 1004);
+        }
+      }
 
       // If the resource doesn't exist, spl_autoload_register() will throw a
       // fatal error. The shutdown handler will "catch" it. It is not possible
@@ -303,10 +324,8 @@ final class cora {
         throw new \Exception('Batch limit exceeded.', 1013);
       }
       foreach($batch as $api_call) {
-        // Need to attach the API key onto each api_call
-        if(isset($request['api_key']) === true) {
-          $api_call['api_key'] = $request['api_key'];
-        }
+        // Put this on each API call for logging.
+        $api_call['api_key'] = $request['api_key'];
         $this->api_calls[] = $api_call;
       }
     }
@@ -339,47 +358,6 @@ final class cora {
     $number_unique_aliases = count(array_unique($aliases));
     if($number_aliases !== $number_unique_aliases) {
       throw new \Exception('Duplicate alias on API call.', 1018);
-    }
-  }
-
-  /**
-   * Check to see if there were any obvious errors in the API request.
-   *
-   * @param array $call The API call.
-   * @param string $call_type The type this call is.
-   *
-   * @throws \Exception If the API key was not specified.
-   * @throws \Exception If the resource was not specified.
-   * @throws \Exception If the method was not specified.
-   * @throws \Exception If the specified API key was invalid.
-   * @throws \Exception If a private method was called without a valid
-   * session.
-   */
-  private function check_api_call_for_errors($call, $call_type) {
-    if(isset($call['api_key']) === false) {
-      throw new \Exception('API Key is required.', 1000);
-    }
-
-    // Make sure the API key that was sent is valid.
-    $api_user_resource = new api_user();
-    if($api_user_resource->is_valid_api_key($call['api_key']) === false) {
-      throw new \Exception('Invalid API key.', 1003);
-    }
-
-    // Get the appropriate session object. This has to be done always because
-    // the session must be available even for non-session requests in the case
-    // of something like logging in.
-    $session = api_session::get_instance();
-
-
-    // If the request requires a session, make sure it's valid. At the very
-    // least, attempt to touch the session anyways. This will make
-    // get_external_id return appropriately for non-session API calls.
-    $session_is_valid = $session->touch();
-    if($call_type === 'session') {
-      if($session_is_valid === false) {
-        throw new \Exception('API session is expired.', 1004);
-      }
     }
   }
 

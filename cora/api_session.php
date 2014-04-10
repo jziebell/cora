@@ -2,7 +2,8 @@
 
 namespace cora;
 
-/** * Offers session-related functions.
+/**
+ * Offers session-related functions.
  *
  * @author Jon Ziebell
  */
@@ -10,11 +11,15 @@ final class api_session {
 
   /**
    * The session_key for this session.
+   *
+   * @var string
    */
   private $session_key = null;
 
   /**
    * The external_id for this session.
+   *
+   * @var int
    */
   private $external_id = null;
 
