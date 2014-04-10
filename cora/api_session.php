@@ -2,8 +2,7 @@
 
 namespace cora;
 
-/**
- * Offers session-related functions.
+/** * Offers session-related functions.
  *
  * @author Jon Ziebell
  */
@@ -94,12 +93,9 @@ final class api_session {
     $created_by_escaped = $database->escape($_SERVER['REMOTE_ADDR']);
     $last_used_by_escaped = $created_by_escaped;
 
-    $table = $this->get_table();
-    $table_escaped = $database->escape_identifier($table);
-
     $query = '
       insert into
-         ' . $table_escaped . '(
+        `api_session`(
           `session_key`,
           `timeout`,
           `life`,
@@ -135,8 +131,8 @@ final class api_session {
 
     // Set all of the necessary cookies. Both *_session_key and *_external_id are
     // read every API request and made available to the API.
-    $this->set_cookie($table . '_session_key', $session_key, $expire);
-    $this->set_cookie($table . '_external_id', $external_id, $expire);
+    $this->set_cookie('session_key', $session_key, $expire);
+    $this->set_cookie('external_id', $external_id, $expire);
     if(isset($additional_cookie_values) === true) {
       foreach($additional_cookie_values as $key => $value) {
         $this->set_cookie($key, $value, $expire, false);
@@ -165,19 +161,15 @@ final class api_session {
     // method will search for a session with a null session key and end up
     // returning false. Class cora\cora will throw an exception for an expired
     // session in that case.
-    $table = $this->get_table();
-    if(isset($_COOKIE[$table . '_session_key'])) {
-      $session_key = $_COOKIE[$table . '_session_key'];
-    }
-    if(isset($_COOKIE[$table . '_session_key'])) {
-      $session_key = $_COOKIE[$table . '_session_key'];
+    if(isset($_COOKIE['session_key'])) {
+      $session_key = $_COOKIE['session_key'];
     }
     else {
       $session_key = null;
     }
 
-    if(isset($_COOKIE[$table . '_external_id'])) {
-      $external_id = $_COOKIE[$table . '_external_id'];
+    if(isset($_COOKIE['external_id'])) {
+      $external_id = $_COOKIE['external_id'];
     }
     else {
       $external_id = null;
@@ -186,11 +178,10 @@ final class api_session {
     $database = database::get_instance();
     $session_key_escaped = $database->escape($session_key);
     $last_used_by_escaped = $database->escape($_SERVER['REMOTE_ADDR']);
-    $table_escaped = $database->escape_identifier($table);
 
     $query = '
       update
-         ' . $table_escaped . '
+        `api_session`
       set
         `last_used_at` = now(),
         `last_used_by` = inet_aton(' . $last_used_by_escaped . ')
@@ -250,10 +241,9 @@ final class api_session {
       $session_key = $this->session_key;
     }
     $session_key_escaped = $database->escape($session_key);
-    $table_escaped = $database->escape_identifier($this->get_table());
     $query = '
       update
-        ' . $table_escaped . '
+        `api_session`
       set
         `deleted` = 1
       where
@@ -271,17 +261,6 @@ final class api_session {
    */
   public function get_external_id() {
     return $this->external_id;
-  }
-
-  /**
-   * Look at the class that extended this class and use that as the table name.
-   *
-   * @return string The table name.
-   */
-  private function get_table() {
-    $class_parts = explode('\\', get_class($this));
-    $table = end($class_parts);
-    return $table;
   }
 
   /**
